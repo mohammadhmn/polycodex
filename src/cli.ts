@@ -392,7 +392,8 @@ program
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    await runCodexWithAccount({ codexArgs: [], forceLock: false, restorePreviousAuth: false });
+    // Default behavior: show polycodex info (do not start a codex session).
+    await listAccountsCommand();
     return;
   }
 

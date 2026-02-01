@@ -66,7 +66,7 @@ Aliases: `ls`, `add`, `rm`, `rename`, `use`, `switch`, `current`, `which`, `impo
 
 ### Running codex
 
-- `polycodex`: runs interactive `codex` using the current account
+- `polycodex codex`: runs interactive `codex` using the current account
 - `polycodex run [<name>] -- <codex args...>`: run `codex` for an account
 - `polycodex run --temp -- ...`: run without changing your default login
 

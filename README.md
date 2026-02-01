@@ -32,8 +32,8 @@ Switch default account:
 - `polycodex accounts use work`
 
 Run Codex using current account:
-- `polycodex`
-- `polycodex exec -m o3 "do the thing"`
+- `polycodex codex` (interactive)
+- `polycodex exec -m o3 "do the thing"` (passthrough)
 
 Run a one-off command without switching your default login:
 - `polycodex run personal --temp -- codex login status`
