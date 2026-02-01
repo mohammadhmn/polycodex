@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { addAccount, listAccounts, useAccount } from "../src/profiles";
+import { addAccount, listAccounts, renameAccount, useAccount } from "../src/profiles";
 import { loadConfig } from "../src/config";
 
 let tmpRoot: string | undefined;
@@ -39,5 +39,16 @@ describe("profiles", () => {
     expect(accounts.map((a) => a.name)).toEqual(["personal", "work"]);
     const current = accounts.find((a) => a.isCurrent);
     expect(current?.name).toBe("personal");
+  });
+
+  test("renames account and preserves current pointer", async () => {
+    await setup();
+    await addAccount({ name: "work" });
+    await useAccount("work");
+    await renameAccount("work", "work2");
+    const cfg = await loadConfig();
+    expect(cfg.currentAccount).toBe("work2");
+    expect(cfg.accounts.work).toBeUndefined();
+    expect(cfg.accounts.work2).toBeTruthy();
   });
 });

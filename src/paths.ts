@@ -35,6 +35,10 @@ export function accountAuthPath(accountName: string): string {
   return path.join(accountDir(accountName), "auth.json");
 }
 
+export function accountMetaPath(accountName: string): string {
+  return path.join(accountDir(accountName), "meta.json");
+}
+
 export function locksDir(): string {
   return path.join(polycodexHomeDir(), "locks");
 }

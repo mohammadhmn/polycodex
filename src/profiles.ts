@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import { loadConfig, normalizeAccountName, isValidAccountName, saveConfig } from "./config";
 import { accountDir } from "./paths";
+import { ensureAccountMeta, updateAccountMeta } from "./accountMeta";
 import type { PolyConfigV2 } from "./types";
 
 export async function addAccount({
@@ -19,6 +20,7 @@ export async function addAccount({
   }
 
   await fs.mkdir(accountDir(account), { recursive: true, mode: 0o700 });
+  await ensureAccountMeta(account);
   config.accounts[account] = {};
   if (!config.currentAccount) config.currentAccount = account;
 
@@ -47,6 +49,7 @@ export async function useAccount(name: string): Promise<PolyConfigV2> {
   }
   config.currentAccount = account;
   await saveConfig(config);
+  await updateAccountMeta(account, { lastUsedAt: new Date().toISOString() });
   return config;
 }
 
@@ -79,5 +82,35 @@ export async function removeAccount({
     await fs.rm(accountDir(account), { recursive: true, force: true });
   }
 
+  return config;
+}
+
+export async function renameAccount(oldName: string, newName: string): Promise<PolyConfigV2> {
+  const from = normalizeAccountName(oldName);
+  const to = normalizeAccountName(newName);
+  if (!isValidAccountName(to)) {
+    throw new Error("Invalid account name. Use letters, numbers, underscore, or dash.");
+  }
+
+  const config = await loadConfig();
+  if (!(from in config.accounts)) throw new Error(`Unknown account: ${from}`);
+  if (to in config.accounts) throw new Error(`Account already exists: ${to}`);
+
+  // Move account data folder if present.
+  try {
+    await fs.rename(accountDir(from), accountDir(to));
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | undefined)?.code;
+    if (code !== "ENOENT") throw error;
+    await fs.mkdir(accountDir(to), { recursive: true, mode: 0o700 });
+  }
+
+  config.accounts[to] = config.accounts[from] ?? {};
+  delete config.accounts[from];
+
+  if (config.currentAccount === from) config.currentAccount = to;
+  await saveConfig(config);
+
+  await updateAccountMeta(to, { lastUsedAt: new Date().toISOString() });
   return config;
 }
