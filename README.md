@@ -1,5 +1,8 @@
 # polycodex
 
+[![npm version](https://img.shields.io/npm/v/polycodex)](https://www.npmjs.com/package/polycodex)
+[![license](https://img.shields.io/npm/l/polycodex)](LICENSE)
+
 `polycodex` is a small Node CLI wrapper around `codex` that adds multiple “accounts” (logins) and fast switching.
 
 It reuses your default Codex home (`~/.codex`) for everything (rules, skills, config, sessions, history, etc) and only switches accounts by swapping `~/.codex/auth.json` under a lock.
