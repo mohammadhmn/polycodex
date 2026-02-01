@@ -1,32 +1,23 @@
 # polycodex
 
-`polycodex` is a Bun + TypeScript wrapper around `codex` that adds multiple “accounts” (logins) and fast switching.
+`polycodex` is a small Node CLI wrapper around `codex` that adds multiple “accounts” (logins) and fast switching.
 
 It reuses your default Codex home (`~/.codex`) for everything (rules, skills, config, sessions, history, etc) and only switches accounts by swapping `~/.codex/auth.json` under a lock.
 
 See `docs/how-it-works.md` for details.
 
-## Install (local dev)
+## Install
 
-- Run: `bun install`
-- Run: `bun run dev -- --help`
+- Run without installing: `npx polycodex --help`
+- Install globally: `npm i -g polycodex`
 
-## Build
-
-- Build CLI bundle: `bun run build`
-- Output: `dist/cli.js`
-
-## npm (binary) distribution
-
-This package is published as a normal Node CLI (single npm package).
-
-Publish flow:
-- `bun run build`
-- `npm publish`
+Requirements:
+- `codex` installed and available in `PATH` (polycodex shells out to it)
+- Node.js 18+
 
 ## Usage
 
-Create accounts (profiles):
+Create accounts:
 - `polycodex profile add work`
 - `polycodex profile add personal`
 
@@ -41,8 +32,24 @@ Run Codex using current account:
 - `polycodex`
 - `polycodex exec -m o3 "do the thing"`
 
-Run Codex using a specific account (one-off):
+Run a one-off command without switching your default login:
 - `polycodex run --account personal --restore -- codex login status`
+
+## Development
+
+- Install deps: `bun install`
+- Typecheck: `bun run typecheck`
+- Tests: `bun test`
+- Build (Node CLI): `bun run build`
+
+## Publish
+
+- `bun run build`
+- `npm publish`
+
+## Contributing
+
+See `CONTRIBUTING.md`.
 
 ## Storage
 
@@ -56,17 +63,3 @@ Lock:
 
 Codex home (unchanged):
 - `~/.codex` (polycodex only touches `~/.codex/auth.json`)
-
-To install dependencies:
-
-```bash
-bun install
-```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.3.8. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.

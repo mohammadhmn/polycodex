@@ -34,6 +34,8 @@ While `codex` is running, `polycodex` prevents other `polycodex` processes from 
 
 If you see “locked by …”, it usually means another `polycodex`-managed Codex session is still running.
 
+If the previous process crashed and left a stale lock, you can retry with `--force` (e.g. `polycodex run --force -- ...`).
+
 ## What happens when you run codex through polycodex
 
 For commands that run `codex` (including passthrough, `run`, `login`, `logout`, `status`):
@@ -69,4 +71,3 @@ Use this for one-off commands where you don’t want to permanently switch your 
 
 - `codex` must be installed and available in `PATH` (polycodex shells out to it).
 - Node.js is required to run the published npm package.
-
