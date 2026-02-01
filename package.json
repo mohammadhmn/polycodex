@@ -3,17 +3,24 @@
   "version": "0.1.0",
   "description": "Multi-account wrapper for the Codex CLI",
   "type": "module",
-  "private": true,
-  "bin": {
-    "polycodex": "dist/cli.js"
-  },
+  "license": "MIT",
+  "private": false,
   "scripts": {
-    "dev": "bun run src/cli.ts",
-    "build": "bun build --target=bun --outfile dist/cli.js --banner=$'#!/usr/bin/env bun\\n' src/cli.ts && chmod +x dist/cli.js",
-    "compile": "bun build --compile --outfile dist/polycodex src/cli.ts",
+    "dev": "bun run src/cli.ts --help",
+    "build": "bun build --target=node --format=esm --outfile dist/cli.js --banner=$'#!/usr/bin/env node\\n' src/cli.ts && chmod +x dist/cli.js",
+    "prepublishOnly": "bun run build",
     "test": "bun test",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit"
   },
+  "bin": {
+    "polycodex": "dist/cli.js"
+  },
+  "files": [
+    "dist/cli.js",
+    "README.md",
+    "POLYCODEX_PLAN.md",
+    "LICENSE"
+  ],
   "devDependencies": {
     "@types/bun": "latest"
   },
