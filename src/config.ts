@@ -105,13 +105,13 @@ export function resolveAccountName(config: PolyConfigV2, requested?: string): st
   if (first) return first;
 
   throw new Error(
-    "No account configured. Run `polycodex profile add <name>` and then `polycodex login --account <name>`.",
+    "No account configured. Run `polycodex accounts add <name>` and then `polycodex accounts use <name>`.",
   );
 }
 
 export async function ensureAccountExists(config: PolyConfigV2, accountName: string): Promise<void> {
   if (accountName in config.accounts) return;
-  throw new Error(`Unknown account: ${accountName}. Run \`polycodex profile list\`.`);
+  throw new Error(`Unknown account: ${accountName}. Run \`polycodex accounts list\`.`);
 }
 
 export function isValidAccountName(name: string): boolean {
