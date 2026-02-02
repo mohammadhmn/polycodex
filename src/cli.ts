@@ -317,7 +317,8 @@ program
 program
   .command("completion <shell>")
   .description("Print shell completion script (bash|zsh|fish)")
-  .action((shell: string) => {
+  .option("--install", "install completion for current user (zsh only)")
+  .action(async (shell: string, opts: { install?: boolean }) => {
     if (shell === "bash") {
       process.stdout.write(
         [
@@ -337,14 +338,38 @@ program
       return;
     }
     if (shell === "zsh") {
-      process.stdout.write(
-        [
-          "# zsh completion for polycodex (via bashcompinit)",
-          "autoload -U +X bashcompinit && bashcompinit",
-          "source <(polycodex completion bash)",
-          "",
-        ].join("\n"),
-      );
+      const script = [
+        "#compdef polycodex",
+        "",
+        "_polycodex_complete() {",
+        "  local -a suggestions",
+        "  local current=${words[CURRENT]}",
+        "  local cword=$((CURRENT - 1))",
+        "  suggestions=(${(@f)$(polycodex __complete --cword $cword --current \"$current\" --words \"${words[@]}\")})",
+        "  compadd -a suggestions",
+        "}",
+        "",
+        "compdef _polycodex_complete polycodex",
+        "",
+      ].join("\n");
+
+      if (opts.install) {
+        const os = await import("node:os");
+        const path = await import("node:path");
+        const fs = await import("node:fs/promises");
+        const home = os.homedir();
+        const targetDir = path.join(home, ".zsh", "completions");
+        const targetFile = path.join(targetDir, "_polycodex");
+        await fs.mkdir(targetDir, { recursive: true });
+        await fs.writeFile(targetFile, script, { mode: 0o644 });
+        console.log(`Installed Zsh completion to ${targetFile}`);
+        console.log("Add this to ~/.zshrc if not already:");
+        console.log(`  fpath=("${targetDir}" $fpath)`);
+        console.log("  autoload -Uz compinit && compinit");
+        return;
+      }
+
+      process.stdout.write(script);
       return;
     }
     if (shell === "fish") {

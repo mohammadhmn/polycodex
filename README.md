@@ -54,7 +54,10 @@ Bash:
 
 Zsh:
 - `polycodex completion zsh > ~/.polycodex-completion.zsh`
-- Add to `~/.zshrc`: `source ~/.polycodex-completion.zsh`
+- Add to `~/.zshrc`:
+  - `autoload -Uz compinit && compinit`
+  - `source ~/.polycodex-completion.zsh`
+- Or install to fpath: `polycodex completion zsh --install`
 
 Fish:
 - `polycodex completion fish > ~/.config/fish/completions/polycodex.fish`

@@ -37,4 +37,13 @@ describe("completion", () => {
     });
     expect(res).toEqual(["bash", "fish", "zsh"]);
   });
+
+  test("suggests completion flags", async () => {
+    const res = await completePolycodex({
+      words: ["polycodex", "completion", "zsh", "--"],
+      cword: 4,
+      current: "--",
+    });
+    expect(res).toContain("--install");
+  });
 });

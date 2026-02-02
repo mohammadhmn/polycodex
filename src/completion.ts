@@ -118,6 +118,7 @@ export async function completePolycodex(ctx: CompletionContext): Promise<string[
 
   if (cmd0 === "completion") {
     if (cword === 1) return uniqPrefixMatch(["bash", "zsh", "fish"], cur);
+    if (cword >= 2 && cur.startsWith("-")) return uniqPrefixMatch(["--install", "--help", "-h"], cur);
     return [];
   }
 

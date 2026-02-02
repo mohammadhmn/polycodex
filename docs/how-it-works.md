@@ -88,7 +88,8 @@ Caching: results are cached for 60 seconds by default. Use `--no-cache` to disab
 `polycodex` can print shell completion scripts:
 
 - Bash: `polycodex completion bash`
-- Zsh: `polycodex completion zsh` (wraps bash completion via `bashcompinit`)
+- Zsh: `polycodex completion zsh` (native zsh completion; requires `compinit`)
+  - Install helper: `polycodex completion zsh --install`
 - Fish: `polycodex completion fish`
 
 ## Requirements
