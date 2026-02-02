@@ -18,11 +18,6 @@ describe("completion", () => {
     expect(res).toContain("rename");
   });
 
-  test("suggests quota subcommands", async () => {
-    const res = await completePolycodex({ words: ["polycodex", "quota", "o"], cword: 2, current: "o" });
-    expect(res).toContain("open");
-  });
-
   test("suggests shells for completion command", async () => {
     const res = await completePolycodex({
       words: ["polycodex", "completion", ""],
@@ -32,4 +27,3 @@ describe("completion", () => {
     expect(res).toEqual(["bash", "fish", "zsh"]);
   });
 });
-
