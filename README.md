@@ -25,25 +25,21 @@ Create accounts:
 - `polycodex accounts add personal`
 
 Login per account (stores per-account auth snapshots):
-- `polycodex login --account work`
-- `polycodex login --account personal`
+- `polycodex run work -- codex login`
+- `polycodex run personal -- codex login`
 
 Switch default account:
 - `polycodex accounts use work`
 
 Run Codex using current account:
 - `polycodex codex` (interactive)
-- `polycodex exec -m o3 "do the thing"` (passthrough)
+- `polycodex codex -m o3 "do the thing"` (passthrough)
 
 Run a one-off command without switching your default login:
 - `polycodex run personal --temp -- codex login status`
 
 See accounts at a glance:
 - `polycodex accounts` (alias: `polycodex ls`)
-
-Quota (best-effort):
-- `polycodex quota work`
-- `polycodex quota open work`
 
 ## Autocomplete
 

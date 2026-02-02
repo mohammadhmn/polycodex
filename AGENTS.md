@@ -42,6 +42,10 @@
   - updated docs if CLI UX changes (`README.md`, `docs/`)
   - tests for non-trivial logic changes
 
+## Agent-Specific Instructions
+
+- Do not create git commits (or rewrite history) unless explicitly asked.
+
 ## Security & Configuration Tips
 
 - `polycodex` swaps `~/.codex/auth.json` under a lock; avoid manual edits while it is running.

@@ -38,7 +38,7 @@ If the previous process crashed and left a stale lock, you can retry with `--for
 
 ## What happens when you run codex through polycodex
 
-For commands that run `codex` (including passthrough, `run`, `login`, `logout`, `status`):
+For commands that run `codex` (including passthrough, `run`, and `status`):
 
 1) Acquire the auth lock
 2) Replace `~/.codex/auth.json` with the selected account’s snapshot (or delete it if that account has no snapshot yet)
@@ -46,9 +46,9 @@ For commands that run `codex` (including passthrough, `run`, `login`, `logout`, 
 4) After `codex` exits, copy the resulting `~/.codex/auth.json` back into the selected account’s snapshot (keeps refreshed tokens)
 5) Release the lock
 
-### The `--restore` flag
+### The `--temp` flag
 
-`polycodex run --restore -- ...` restores the previous `~/.codex/auth.json` after the command completes.
+`polycodex run --temp -- ...` restores the previous `~/.codex/auth.json` after the command completes.
 
 Use this for one-off commands where you don’t want to permanently switch your default Codex login.
 
@@ -69,14 +69,6 @@ Aliases: `ls`, `add`, `rm`, `rename`, `use`, `switch`, `current`, `which`, `impo
 - `polycodex codex`: runs interactive `codex` using the current account
 - `polycodex run [<name>] -- <codex args...>`: run `codex` for an account
 - `polycodex run --temp -- ...`: run without changing your default login
-
-### Quota (best-effort)
-
-Weekly/sessions quota is not exposed via a stable public API for OAuth.
-
-- `polycodex quota [<name>]`: shows a saved note (if any) or “unknown”
-- `polycodex quota open [<name>]`: opens the ChatGPT UI so you can check quota
-- `polycodex quota set [<name>] <note...>`: store a manual quota note
 
 ## Autocomplete
 
