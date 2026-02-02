@@ -44,6 +44,7 @@ See accounts at a glance:
 Usage limits (via Codex app-server RPC):
 - `polycodex limits` (all accounts)
 - `polycodex limits work`
+Notes: results are cached for 60s by default. Use `--no-cache` or `--ttl <seconds>`.
 
 ## Autocomplete
 

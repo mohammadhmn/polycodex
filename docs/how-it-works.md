@@ -81,6 +81,8 @@ Under the hood it runs:
 
 If Codex app-server isn’t available in your installed `codex`, this command will fail.
 
+Caching: results are cached for 60 seconds by default. Use `--no-cache` to disable or `--ttl <seconds>` to change it.
+
 ## Autocomplete
 
 `polycodex` can print shell completion scripts:
