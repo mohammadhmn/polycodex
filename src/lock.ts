@@ -86,7 +86,7 @@ export async function acquireAuthLock(opts: AcquireAuthLockOptions): Promise<Aut
         ? `${existingOwner.account} (pid ${existingOwner.pid}, started ${existingOwner.startedAt})`
         : "unknown owner";
       throw new Error(
-        `Auth swap is locked by ${who}. Close the other polycodex-managed Codex session or run again with --force.`,
+        `Auth swap is locked by ${who}. Close the other multicodex-managed Codex session or run again with --force.`,
       );
     }
   }

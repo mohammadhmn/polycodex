@@ -1,5 +1,5 @@
 {
-  "name": "polycodex",
+  "name": "multicodex",
   "version": "0.1.5",
   "description": "Multi-account wrapper for the Codex CLI",
   "type": "module",
@@ -14,8 +14,8 @@
     "release": "bun run scripts/release.ts"
   },
   "bin": {
-    "polycodex": "dist/cli.js",
-    "plcodex": "dist/cli.js"
+    "multicodex": "dist/cli.js",
+    "mcodex": "dist/cli.js"
   },
   "files": [
     "dist/cli.js",

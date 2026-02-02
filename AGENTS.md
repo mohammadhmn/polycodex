@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-- `src/`: TypeScript source for the `polycodex` CLI.
+- `src/`: TypeScript source for the `multicodex` CLI.
   - Core modules: auth swapping (`src/authSwap.ts`), config (`src/config.ts`), account metadata (`src/accountMeta.ts`), CLI entry (`src/cli.ts`).
 - `test/`: Unit tests (`bun:test`).
 - `docs/`: User documentation (e.g. `docs/how-it-works.md`, `docs/releasing.md`).
@@ -48,5 +48,5 @@
 
 ## Security & Configuration Tips
 
-- `polycodex` swaps `~/.codex/auth.json` under a lock; avoid manual edits while it is running.
-- Local state is stored under `~/.config/polycodex` (override with `POLYCODEX_HOME` for testing).
+- `multicodex` swaps `~/.codex/auth.json` under a lock; avoid manual edits while it is running.
+- Local state is stored under `~/.config/multicodex` (override with `MULTICODEX_HOME` for testing; `POLYCODEX_HOME` still works).

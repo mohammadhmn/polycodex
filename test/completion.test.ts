@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { completePolycodex } from "../src/completion";
+import { completeMulticodex } from "../src/completion";
 
 describe("completion", () => {
   test("suggests top-level commands", async () => {
-    const res = await completePolycodex({ words: ["polycodex", "a"], cword: 1, current: "a" });
+    const res = await completeMulticodex({ words: ["multicodex", "a"], cword: 1, current: "a" });
     expect(res).toContain("accounts");
     expect(res).toContain("add");
   });
 
   test("suggests accounts subcommands", async () => {
-    const res = await completePolycodex({
-      words: ["polycodex", "accounts", "r"],
+    const res = await completeMulticodex({
+      words: ["multicodex", "accounts", "r"],
       cword: 2,
       current: "r",
     });
@@ -19,19 +19,19 @@ describe("completion", () => {
   });
 
   test("suggests limits command", async () => {
-    const res = await completePolycodex({ words: ["polycodex", "l"], cword: 1, current: "l" });
+    const res = await completeMulticodex({ words: ["multicodex", "l"], cword: 1, current: "l" });
     expect(res).toContain("limits");
   });
 
   test("suggests limits flags", async () => {
-    const res = await completePolycodex({ words: ["polycodex", "limits", "--"], cword: 3, current: "--" });
+    const res = await completeMulticodex({ words: ["multicodex", "limits", "--"], cword: 3, current: "--" });
     expect(res).toContain("--ttl");
     expect(res).toContain("--no-cache");
   });
 
   test("suggests shells for completion command", async () => {
-    const res = await completePolycodex({
-      words: ["polycodex", "completion", ""],
+    const res = await completeMulticodex({
+      words: ["multicodex", "completion", ""],
       cword: 2,
       current: "",
     });
@@ -39,8 +39,8 @@ describe("completion", () => {
   });
 
   test("suggests completion flags", async () => {
-    const res = await completePolycodex({
-      words: ["polycodex", "completion", "zsh", "--"],
+    const res = await completeMulticodex({
+      words: ["multicodex", "completion", "zsh", "--"],
       cword: 4,
       current: "--",
     });

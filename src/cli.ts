@@ -7,7 +7,7 @@ import { applyAccountAuthToDefault, importDefaultAuthToAccount, withAccountAuth 
 import { runCodex, runCodexCapture } from "./runCodex";
 import { accountAuthPath } from "./paths";
 import { readAccountMeta, updateAccountMeta } from "./accountMeta";
-import { completePolycodex } from "./completion";
+import { completeMulticodex } from "./completion";
 import { fetchRateLimitsViaRpc } from "./codexRpc";
 import { rateLimitsToRow, renderLimitsTable, type LimitsRow } from "./limits";
 import { getCachedLimits, setCachedLimits } from "./limitsCache";
@@ -48,7 +48,7 @@ async function runCodexWithAccount({
 async function listAccountsCommand(): Promise<void> {
   const { accounts } = await listAccounts();
   if (!accounts.length) {
-    console.log("No accounts configured. Run: polycodex accounts add <name>");
+    console.log("No accounts configured. Run: multicodex accounts add <name>");
     return;
   }
 
@@ -85,7 +85,7 @@ async function statusCommand(name?: string): Promise<never> {
 
 const program = new Command();
 program
-  .name("polycodex")
+  .name("multicodex")
   .description("Manage multiple Codex accounts (OAuth)")
   // Keep in sync with package.json manually.
   .version("0.1.5", "-V, --version", "output the version number")
@@ -150,7 +150,7 @@ accounts
   .action(async () => {
     const name = await currentAccount();
     if (!name) {
-      console.error("No current account set. Run: polycodex accounts add <name>");
+      console.error("No current account set. Run: multicodex accounts add <name>");
       process.exit(2);
     }
     console.log(name);
@@ -197,7 +197,7 @@ program.command("switch <name>").description("Alias for `accounts use`").action(
 program.command("current").description("Alias for `accounts current`").action(async () => {
   const name = await currentAccount();
   if (!name) {
-    console.error("No current account set. Run: polycodex accounts add <name>");
+    console.error("No current account set. Run: multicodex accounts add <name>");
     process.exit(2);
   }
   console.log(name);
@@ -205,7 +205,7 @@ program.command("current").description("Alias for `accounts current`").action(as
 program.command("which").description("Alias for `accounts current`").action(async () => {
   const name = await currentAccount();
   if (!name) {
-    console.error("No current account set. Run: polycodex accounts add <name>");
+    console.error("No current account set. Run: multicodex accounts add <name>");
     process.exit(2);
   }
   console.log(name);
@@ -229,7 +229,7 @@ program
   .action(async (name: string | undefined, opts: { account?: string; temp?: boolean; force?: boolean }) => {
     const account = opts.account ?? name;
     const idx = process.argv.indexOf("--");
-    if (idx === -1) throw new Error("Usage: polycodex run [<name>] [--temp] [--force] -- <codex args...>");
+    if (idx === -1) throw new Error("Usage: multicodex run [<name>] [--temp] [--force] -- <codex args...>");
     const codexArgs = process.argv.slice(idx + 1);
     const finalCodexArgs = codexArgs[0] === "codex" ? codexArgs.slice(1) : codexArgs;
     await runCodexWithAccount({
@@ -273,7 +273,7 @@ program
       : (await listAccounts()).accounts.map((a) => a.name);
 
     if (!targets.length) {
-      console.log("No accounts configured. Run: polycodex accounts add <name>");
+      console.log("No accounts configured. Run: multicodex accounts add <name>");
       return;
     }
 
@@ -322,16 +322,16 @@ program
     if (shell === "bash") {
       process.stdout.write(
         [
-          "# bash completion for polycodex",
+          "# bash completion for multicodex",
           "",
-          "_polycodex_complete() {",
+          "_multicodex_complete() {",
           "  local IFS=$'\\n'",
           "  local -a suggestions",
-          '  suggestions=($(polycodex __complete --cword "$COMP_CWORD" --current "$COMP_WORDS[$COMP_CWORD]" --words "${COMP_WORDS[@]}" 2>/dev/null))',
+          '  suggestions=($(multicodex __complete --cword "$COMP_CWORD" --current "$COMP_WORDS[$COMP_CWORD]" --words "${COMP_WORDS[@]}" 2>/dev/null))',
           '  COMPREPLY=($(compgen -W "${suggestions[*]}" -- "$COMP_WORDS[$COMP_CWORD]"))',
           "}",
           "",
-          "complete -F _polycodex_complete polycodex",
+          "complete -F _multicodex_complete multicodex mcodex",
           "",
         ].join("\n"),
       );
@@ -339,17 +339,17 @@ program
     }
     if (shell === "zsh") {
       const script = [
-        "#compdef polycodex",
+        "#compdef multicodex mcodex",
         "",
-        "_polycodex_complete() {",
+        "_multicodex_complete() {",
         "  local -a suggestions",
         "  local current=${words[CURRENT]}",
         "  local cword=$((CURRENT - 1))",
-        "  suggestions=(${(@f)$(polycodex __complete --cword $cword --current \"$current\" --words \"${words[@]}\")})",
+        "  suggestions=(${(@f)$(multicodex __complete --cword $cword --current \"$current\" --words \"${words[@]}\")})",
         "  compadd -a suggestions",
         "}",
         "",
-        "compdef _polycodex_complete polycodex",
+        "compdef _multicodex_complete multicodex mcodex",
         "",
       ].join("\n");
 
@@ -359,7 +359,7 @@ program
         const fs = await import("node:fs/promises");
         const home = os.homedir();
         const targetDir = path.join(home, ".zsh", "completions");
-        const targetFile = path.join(targetDir, "_polycodex");
+        const targetFile = path.join(targetDir, "_multicodex");
         await fs.mkdir(targetDir, { recursive: true });
         await fs.writeFile(targetFile, script, { mode: 0o644 });
         console.log(`Installed Zsh completion to ${targetFile}`);
@@ -375,15 +375,16 @@ program
     if (shell === "fish") {
       process.stdout.write(
         [
-          "# fish completion for polycodex",
-          "function __polycodex_complete",
+          "# fish completion for multicodex",
+          "function __multicodex_complete",
           "  set -l words (commandline -opc)",
           "  set -l cword (math (count $words) - 1)",
           "  set -l cur (commandline -ct)",
-          "  polycodex __complete --cword $cword --current \"$cur\" --words $words",
+          "  multicodex __complete --cword $cword --current \"$cur\" --words $words",
           "end",
           "",
-          "complete -c polycodex -f -a \"(__polycodex_complete)\"",
+          "complete -c multicodex -f -a \"(__multicodex_complete)\"",
+          "complete -c mcodex -f -a \"(__multicodex_complete)\"",
           "",
         ].join("\n"),
       );
@@ -403,7 +404,7 @@ program
   .action(async (opts: { cword: number; current?: string; words?: string[] }) => {
     const words = opts.words ?? [];
     const current = typeof opts.current === "string" ? opts.current : words[opts.cword] ?? "";
-    const suggestions = await completePolycodex({ words, cword: opts.cword, current });
+    const suggestions = await completeMulticodex({ words, cword: opts.cword, current });
     process.stdout.write(suggestions.join("\n"));
     if (suggestions.length) process.stdout.write("\n");
   });
@@ -420,7 +421,7 @@ program
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
-    // Default behavior: show polycodex info (do not start a codex session).
+    // Default behavior: show multicodex info (do not start a codex session).
     await listAccountsCommand();
     return;
   }

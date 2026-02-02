@@ -1,9 +1,9 @@
-# polycodex
+# multicodex
 
-[![npm version](https://img.shields.io/npm/v/polycodex)](https://www.npmjs.com/package/polycodex)
-[![license](https://img.shields.io/npm/l/polycodex)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/multicodex)](https://www.npmjs.com/package/multicodex)
+[![license](https://img.shields.io/npm/l/multicodex)](LICENSE)
 
-`polycodex` is a small Node CLI wrapper around `codex` that adds multiple “accounts” (logins) and fast switching.
+`multicodex` is a small Node CLI wrapper around `codex` that adds multiple “accounts” (logins) and fast switching.
 
 It reuses your default Codex home (`~/.codex`) for everything (rules, skills, config, sessions, history, etc) and only switches accounts by swapping `~/.codex/auth.json` under a lock.
 
@@ -11,56 +11,59 @@ See `docs/how-it-works.md` for details.
 
 ## Install
 
-- Run without installing: `npx polycodex --help`
-- Install globally: `npm i -g polycodex`
+- Run without installing: `npx multicodex --help`
+- Install globally: `npm i -g multicodex`
 
 Requirements:
-- `codex` installed and available in `PATH` (polycodex shells out to it)
+- `codex` installed and available in `PATH` (multicodex shells out to it)
 - Node.js 18+
+
+Binary:
+- `multicodex` (alias: `mcodex`)
 
 ## Usage
 
 Create accounts:
-- `polycodex accounts add work`
-- `polycodex accounts add personal`
+- `multicodex accounts add work`
+- `multicodex accounts add personal`
 
 Login per account (stores per-account auth snapshots):
-- `polycodex run work -- codex login`
-- `polycodex run personal -- codex login`
+- `multicodex run work -- codex login`
+- `multicodex run personal -- codex login`
 
 Switch default account:
-- `polycodex accounts use work`
+- `multicodex accounts use work`
 
 Run Codex using current account:
-- `polycodex codex` (interactive)
-- `polycodex codex -m o3 "do the thing"` (passthrough)
+- `multicodex codex` (interactive)
+- `multicodex codex -m o3 "do the thing"` (passthrough)
 
 Run a one-off command without switching your default login:
-- `polycodex run personal --temp -- codex login status`
+- `multicodex run personal --temp -- codex login status`
 
 See accounts at a glance:
-- `polycodex accounts` (alias: `polycodex ls`)
+- `multicodex accounts` (alias: `multicodex ls`)
 
 Usage limits (via Codex app-server RPC):
-- `polycodex limits` (all accounts)
-- `polycodex limits work`
+- `multicodex limits` (all accounts)
+- `multicodex limits work`
 Notes: results are cached for 60s by default. Use `--no-cache` or `--ttl <seconds>`.
 
 ## Autocomplete
 
 Bash:
-- `polycodex completion bash > ~/.polycodex-completion.bash`
-- Add to `~/.bashrc`: `source ~/.polycodex-completion.bash`
+- `multicodex completion bash > ~/.multicodex-completion.bash`
+- Add to `~/.bashrc`: `source ~/.multicodex-completion.bash`
 
 Zsh:
-- `polycodex completion zsh > ~/.polycodex-completion.zsh`
+- `multicodex completion zsh > ~/.multicodex-completion.zsh`
 - Add to `~/.zshrc`:
   - `autoload -Uz compinit && compinit`
-  - `source ~/.polycodex-completion.zsh`
-- Or install to fpath: `polycodex completion zsh --install`
+  - `source ~/.multicodex-completion.zsh`
+- Or install to fpath: `multicodex completion zsh --install`
 
 Fish:
-- `polycodex completion fish > ~/.config/fish/completions/polycodex.fish`
+- `multicodex completion fish > ~/.config/fish/completions/multicodex.fish`
 
 ## Development
 
@@ -80,13 +83,14 @@ See `CONTRIBUTING.md`.
 
 ## Storage
 
-Default root: `~/.config/polycodex` (override with `POLYCODEX_HOME`).
+Default root: `~/.config/multicodex` (override with `MULTICODEX_HOME`; `POLYCODEX_HOME` is still supported).
+If `~/.config/polycodex` exists, multicodex will use it for backward compatibility.
 
 Per-account auth snapshots:
-- `~/.config/polycodex/accounts/<name>/auth.json`
+- `~/.config/multicodex/accounts/<name>/auth.json`
 
 Lock:
-- `~/.config/polycodex/locks/auth.lockdir`
+- `~/.config/multicodex/locks/auth.lockdir`
 
 Codex home (unchanged):
-- `~/.codex` (polycodex only touches `~/.codex/auth.json`)
+- `~/.codex` (multicodex only touches `~/.codex/auth.json`)

@@ -23,9 +23,11 @@ async function listAccountNames(): Promise<string[]> {
   return Object.keys(cfg.accounts).sort();
 }
 
-export async function completePolycodex(ctx: CompletionContext): Promise<string[]> {
-  const words = ctx.words[0] === "polycodex" ? ctx.words.slice(1) : ctx.words.slice();
-  const cword = Math.max(0, Math.min(ctx.cword - (ctx.words[0] === "polycodex" ? 1 : 0), words.length));
+export async function completeMulticodex(ctx: CompletionContext): Promise<string[]> {
+  const invocations = new Set(["multicodex", "mcodex", "polycodex"]);
+  const isCommand = invocations.has(ctx.words[0] ?? "");
+  const words = isCommand ? ctx.words.slice(1) : ctx.words.slice();
+  const cword = Math.max(0, Math.min(ctx.cword - (isCommand ? 1 : 0), words.length));
   const cur = ctx.current ?? words[cword] ?? "";
 
   // Do not attempt to complete codex passthrough args after the `run --` delimiter.

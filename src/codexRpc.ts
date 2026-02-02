@@ -154,7 +154,7 @@ export class CodexRpcClient {
 export async function fetchRateLimitsViaRpc(): Promise<RateLimitSnapshot> {
   const client = new CodexRpcClient();
   try {
-    await client.initialize("polycodex", "dev");
+    await client.initialize("multicodex", "dev");
     return await client.fetchRateLimits();
   } finally {
     client.shutdown();
