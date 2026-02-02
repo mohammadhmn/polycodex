@@ -23,6 +23,12 @@ describe("completion", () => {
     expect(res).toContain("limits");
   });
 
+  test("suggests limits flags", async () => {
+    const res = await completePolycodex({ words: ["polycodex", "limits", "--"], cword: 3, current: "--" });
+    expect(res).toContain("--ttl");
+    expect(res).toContain("--no-cache");
+  });
+
   test("suggests shells for completion command", async () => {
     const res = await completePolycodex({
       words: ["polycodex", "completion", ""],
