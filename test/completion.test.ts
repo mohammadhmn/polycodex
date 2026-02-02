@@ -18,6 +18,11 @@ describe("completion", () => {
     expect(res).toContain("rename");
   });
 
+  test("suggests limits command", async () => {
+    const res = await completePolycodex({ words: ["polycodex", "l"], cword: 1, current: "l" });
+    expect(res).toContain("limits");
+  });
+
   test("suggests shells for completion command", async () => {
     const res = await completePolycodex({
       words: ["polycodex", "completion", ""],
