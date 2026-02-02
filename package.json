@@ -1,6 +1,6 @@
 {
   "name": "polycodex",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Multi-account wrapper for the Codex CLI",
   "type": "module",
   "license": "MIT",

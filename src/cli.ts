@@ -88,7 +88,7 @@ program
   .name("polycodex")
   .description("Manage multiple Codex accounts (OAuth)")
   // Keep in sync with package.json manually.
-  .version("0.1.4", "-V, --version", "output the version number")
+  .version("0.1.5", "-V, --version", "output the version number")
   .enablePositionalOptions()
   .showHelpAfterError(true)
   .showSuggestionAfterError(true);
