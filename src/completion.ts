@@ -107,7 +107,10 @@ export async function completePolycodex(ctx: CompletionContext): Promise<string[
   }
 
   if (cmd0 === "status" || cmd0 === "whoami" || cmd0 === "limits" || cmd0 === "usage") {
-    const flags = cmd0 === "limits" || cmd0 === "usage" ? ["--force", "--help", "-h"] : ["--help", "-h"];
+    const flags =
+      cmd0 === "limits" || cmd0 === "usage"
+        ? ["--force", "--no-cache", "--ttl", "--help", "-h"]
+        : ["--help", "-h"];
     if (cur.startsWith("-")) return uniqPrefixMatch(flags, cur);
     if (cword === 1) return uniqPrefixMatch(accountNames, cur);
     return [];
