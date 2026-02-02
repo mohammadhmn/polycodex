@@ -41,6 +41,10 @@ Run a one-off command without switching your default login:
 See accounts at a glance:
 - `polycodex accounts` (alias: `polycodex ls`)
 
+Usage limits (via Codex app-server RPC):
+- `polycodex limits` (all accounts)
+- `polycodex limits work`
+
 ## Autocomplete
 
 Bash:

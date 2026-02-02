@@ -38,7 +38,7 @@ If the previous process crashed and left a stale lock, you can retry with `--for
 
 ## What happens when you run codex through polycodex
 
-For commands that run `codex` (including passthrough, `run`, and `status`):
+For commands that run `codex` (including passthrough, `run`, `status`, and `limits`):
 
 1) Acquire the auth lock
 2) Replace `~/.codex/auth.json` with the selected account’s snapshot (or delete it if that account has no snapshot yet)
@@ -69,6 +69,17 @@ Aliases: `ls`, `add`, `rm`, `rename`, `use`, `switch`, `current`, `which`, `impo
 - `polycodex codex`: runs interactive `codex` using the current account
 - `polycodex run [<name>] -- <codex args...>`: run `codex` for an account
 - `polycodex run --temp -- ...`: run without changing your default login
+
+### Limits
+
+`polycodex limits [<name>]` uses the Codex app-server RPC to fetch current usage limits per account.
+
+Under the hood it runs:
+
+- `codex -s read-only -a untrusted app-server`
+- JSON-RPC methods: `initialize`, `initialized`, and `account/rateLimits/read`
+
+If Codex app-server isn’t available in your installed `codex`, this command will fail.
 
 ## Autocomplete
 
