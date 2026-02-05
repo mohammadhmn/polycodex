@@ -27,6 +27,20 @@ describe("completion", () => {
     const res = await completeMulticodex({ words: ["multicodex", "limits", "--"], cword: 3, current: "--" });
     expect(res).toContain("--ttl");
     expect(res).toContain("--no-cache");
+    expect(res).toContain("--json");
+    expect(res).toContain("--account");
+  });
+
+  test("suggests status flags", async () => {
+    const res = await completeMulticodex({ words: ["multicodex", "status", "--"], cword: 3, current: "--" });
+    expect(res).toContain("--json");
+    expect(res).toContain("--account");
+  });
+
+  test("suggests use flags", async () => {
+    const res = await completeMulticodex({ words: ["multicodex", "use", "--"], cword: 3, current: "--" });
+    expect(res).toContain("--force");
+    expect(res).toContain("--json");
   });
 
   test("suggests shells for completion command", async () => {

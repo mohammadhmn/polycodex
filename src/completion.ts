@@ -74,6 +74,14 @@ export async function completeMulticodex(ctx: CompletionContext): Promise<string
     if (cword === 1) return uniqPrefixMatch(subcommands, cur);
 
     const sub = words[1] ?? "";
+    if (cur.startsWith("-")) {
+      if (sub === "list" || sub === "current" || sub === "which") return uniqPrefixMatch(["--json", "--help", "-h"], cur);
+      if (sub === "add") return uniqPrefixMatch(["--json", "--help", "-h"], cur);
+      if (sub === "use" || sub === "switch") return uniqPrefixMatch(["--force", "--json", "--help", "-h"], cur);
+      if (sub === "import") return uniqPrefixMatch(["--force", "--json", "--help", "-h"], cur);
+      if (sub === "remove" || sub === "rm") return uniqPrefixMatch(["--delete-data", "--json", "--help", "-h"], cur);
+      if (sub === "rename") return uniqPrefixMatch(["--json", "--help", "-h"], cur);
+    }
     if (sub === "add") return [];
     if (sub === "list" || sub === "current" || sub === "which") return [];
 
@@ -91,11 +99,21 @@ export async function completeMulticodex(ctx: CompletionContext): Promise<string
   }
 
   if (cmd0 === "use" || cmd0 === "switch" || cmd0 === "rm" || cmd0 === "import") {
+    if (cur.startsWith("-")) {
+      const flags =
+        cmd0 === "use" || cmd0 === "switch"
+          ? ["--force", "--json", "--help", "-h"]
+          : cmd0 === "rm"
+            ? ["--delete-data", "--json", "--help", "-h"]
+            : ["--force", "--json", "--help", "-h"];
+      return uniqPrefixMatch(flags, cur);
+    }
     if (cword === 1) return uniqPrefixMatch(accountNames, cur);
     return [];
   }
 
   if (cmd0 === "rename") {
+    if (cur.startsWith("-")) return uniqPrefixMatch(["--json", "--help", "-h"], cur);
     if (cword === 1) return uniqPrefixMatch(accountNames, cur);
     return [];
   }
@@ -111,8 +129,8 @@ export async function completeMulticodex(ctx: CompletionContext): Promise<string
   if (cmd0 === "status" || cmd0 === "whoami" || cmd0 === "limits" || cmd0 === "usage") {
     const flags =
       cmd0 === "limits" || cmd0 === "usage"
-        ? ["--force", "--no-cache", "--ttl", "--help", "-h"]
-        : ["--help", "-h"];
+        ? ["--account", "--json", "--force", "--no-cache", "--ttl", "--help", "-h"]
+        : ["--account", "--json", "--help", "-h"];
     if (cur.startsWith("-")) return uniqPrefixMatch(flags, cur);
     if (cword === 1) return uniqPrefixMatch(accountNames, cur);
     return [];
