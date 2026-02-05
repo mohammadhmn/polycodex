@@ -49,6 +49,16 @@ Usage limits (via Codex app-server RPC):
 - `multicodex limits work`
 Notes: results are cached for 60s by default. Use `--no-cache` or `--ttl <seconds>`.
 
+## JSON output (for apps/automation)
+
+Most account-management commands support `--json` for machine-readable output (printed to stdout).
+
+Examples:
+- `multicodex accounts list --json`
+- `multicodex accounts current --json`
+- `multicodex use work --json`
+- `multicodex limits --json`
+
 ## Autocomplete
 
 Bash:
