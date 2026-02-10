@@ -27,6 +27,7 @@ final class UsageMenuViewModel: ObservableObject {
         let rawResetMode = defaults.string(forKey: resetDisplayModeKey)
         resetDisplayMode = ResetDisplayMode(rawValue: rawResetMode ?? "") ?? .relative
         cli.customNodePath = customNodePath.isEmpty ? nil : customNodePath
+        start()
     }
 
     deinit {
