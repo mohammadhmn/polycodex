@@ -99,7 +99,7 @@ final class UsageMenuViewModel: ObservableObject {
 
         refreshLoopTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
+                try? await Task.sleep(for: .seconds(MultiCodexCLI.limitsCacheTTLSeconds))
                 if Task.isCancelled {
                     break
                 }

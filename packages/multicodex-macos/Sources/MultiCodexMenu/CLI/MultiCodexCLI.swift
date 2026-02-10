@@ -1,6 +1,8 @@
 import Foundation
 
 final class MultiCodexCLI {
+    static let limitsCacheTTLSeconds = 300
+
     private struct NodeRuntime {
         let executableURL: URL
         let prefixArguments: [String]
@@ -37,7 +39,7 @@ final class MultiCodexCLI {
     }
 
     func fetchLimits(refreshLive: Bool) async throws -> LimitsPayload {
-        var args = ["limits", "--json"]
+        var args = ["limits", "--json", "--ttl", String(Self.limitsCacheTTLSeconds)]
         if refreshLive {
             args.append("--refresh")
         }

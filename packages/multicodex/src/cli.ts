@@ -15,6 +15,8 @@ import { rateLimitsToRow, renderLimitsTable, type LimitsRow } from "./limits";
 import { getCachedLimits, setCachedLimits } from "./limits-cache";
 import { padRight, toErrorMessage, truncateOneLine, wantsJsonArgv, writeJson, type JsonEnvelope } from "./cli-output";
 
+const DEFAULT_LIMITS_CACHE_TTL_SECONDS = 300;
+
 async function fileExists(p: string): Promise<boolean> {
   try {
     await fs.stat(p);
@@ -609,14 +611,14 @@ program
   .option("--force", "reclaim a stale lock")
   .option("--no-cache", "disable cached results")
   .option("--refresh", "force refetch live values (bypass cache)")
-  .option("--ttl <seconds>", "cache TTL in seconds (default: 300)", (v: string) => Number.parseFloat(v))
+  .option("--ttl <seconds>", `cache TTL in seconds (default: ${DEFAULT_LIMITS_CACHE_TTL_SECONDS})`, (v: string) => Number.parseFloat(v))
   .option("--json", "output JSON")
   .action(async (name: string | undefined, opts: { account?: string; provider?: string; force?: boolean; cache?: boolean; refresh?: boolean; ttl?: number; json?: boolean }) => {
     if (opts.account && name) throw new Error("Use either a positional [name] or --account, not both.");
     const provider = parseLimitsProvider(opts.provider);
     const forceLock = Boolean(opts.force);
     const useCache = opts.cache !== false && opts.refresh !== true;
-    const ttlSeconds = Number.isFinite(opts.ttl) ? Math.max(0, opts.ttl ?? 0) : 300;
+    const ttlSeconds = Number.isFinite(opts.ttl) ? Math.max(0, opts.ttl ?? 0) : DEFAULT_LIMITS_CACHE_TTL_SECONDS;
     const ttlMs = ttlSeconds * 1000;
     const requested = opts.account ?? name;
     const targets = requested

@@ -8,7 +8,7 @@ Native macOS SwiftUI menu bar app for `multicodex`.
 - Lists all configured profiles from `multicodex accounts list --json`.
 - Shows per-profile usage from `multicodex limits --json` (5h, weekly, credits, source).
 - One-click profile switch via `multicodex accounts use <name> --json`.
-- Auto refresh every 60 seconds plus manual refresh buttons.
+- Auto refresh every 5 minutes (matching limits cache TTL) plus manual refresh buttons.
 - Card-style profile panels with progress bars and pace status (`ahead`, `on track`, `behind`).
 - Reset time display toggle (`relative` / `absolute`), inspired by OpenUsage.
 - Quick profile switch strip in the menu, inspired by CodexBar.
