@@ -242,8 +242,13 @@ function resolveAuthPaths(): string[] {
   return deduped;
 }
 
-async function loadAuthFromFiles(): Promise<LoadedAuth | null> {
-  const authPaths = resolveAuthPaths();
+async function loadAuthFromFiles(preferredAuthPath?: string): Promise<LoadedAuth | null> {
+  const authPaths = preferredAuthPath
+    ? [
+      path.resolve(preferredAuthPath),
+      ...resolveAuthPaths().filter((candidate) => candidate !== path.resolve(preferredAuthPath)),
+    ]
+    : resolveAuthPaths();
   for (const authPath of authPaths) {
     try {
       const text = await fs.readFile(authPath, "utf8");
@@ -280,6 +285,10 @@ async function loadAuth(): Promise<LoadedAuth | null> {
   const fromFile = await loadAuthFromFiles();
   if (fromFile) return fromFile;
   return await readKeychainAuth();
+}
+
+async function loadAuthFromPreferredPath(authPath: string): Promise<LoadedAuth | null> {
+  return await loadAuthFromFiles(authPath);
 }
 
 async function writeFileAtomic(filePath: string, content: string): Promise<void> {
@@ -421,6 +430,26 @@ export async function fetchRateLimitsViaApi(fetchImpl: FetchLike = fetch): Promi
   if (!authState) {
     throw new Error("Not logged in. Run `codex` to authenticate.");
   }
+
+  return await fetchRateLimitsViaApiForAuthState(authState, fetchImpl);
+}
+
+export async function fetchRateLimitsViaApiForAuthPath(
+  authPath: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<RateLimitSnapshot> {
+  const authState = await loadAuthFromPreferredPath(authPath);
+  if (!authState) {
+    throw new Error("Not logged in. Run `codex` to authenticate.");
+  }
+
+  return await fetchRateLimitsViaApiForAuthState(authState, fetchImpl);
+}
+
+async function fetchRateLimitsViaApiForAuthState(
+  authState: LoadedAuth,
+  fetchImpl: FetchLike,
+): Promise<RateLimitSnapshot> {
 
   const auth = authState.auth;
   const tokens = asRecord(auth.tokens);

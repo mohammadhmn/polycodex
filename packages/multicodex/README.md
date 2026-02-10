@@ -47,7 +47,7 @@ See accounts at a glance:
 Usage limits (via Codex app-server RPC):
 - `multicodex limits` (all accounts)
 - `multicodex limits work`
-Notes: results are cached for 60s by default. Use `--no-cache` or `--ttl <seconds>`.
+Notes: results are cached for 300s by default. Use `--no-cache` or `--ttl <seconds>`.
 
 ## JSON output (for apps/automation)
 

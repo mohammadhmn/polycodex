@@ -89,7 +89,7 @@ Under the hood it runs:
 
 If Codex app-server isn’t available in your installed `codex`, `--provider rpc` fails, while `--provider auto` can still succeed via API.
 
-Caching: results are cached for 120 seconds by default. Use `--refresh` to force live refetch, `--no-cache` to disable cache usage, or `--ttl <seconds>` to change the TTL.
+Caching: results are cached for 300 seconds by default. Use `--refresh` to force live refetch, `--no-cache` to disable cache usage, or `--ttl <seconds>` to change the TTL.
 
 ## Autocomplete
 

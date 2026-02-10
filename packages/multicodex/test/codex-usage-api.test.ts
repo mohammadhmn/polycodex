@@ -3,7 +3,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { fetchRateLimitsViaApi, parseUsageSnapshotFromWhamResponse, type FetchLike } from "../src/codex-usage-api";
+import {
+  fetchRateLimitsViaApi,
+  fetchRateLimitsViaApiForAuthPath,
+  parseUsageSnapshotFromWhamResponse,
+  type FetchLike,
+} from "../src/codex-usage-api";
 
 function getUrl(input: Parameters<typeof fetch>[0]): string {
   if (typeof input === "string") return input;
@@ -202,5 +207,75 @@ describe("codex usage api", () => {
     expect(persisted.tokens?.access_token).toBe("new-token");
     expect(persisted.tokens?.refresh_token).toBe("refresh-2");
     expect(typeof persisted.last_refresh).toBe("string");
+  });
+
+  test("uses provided auth file path when fetching limits", async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "multicodex-usage-api-"));
+    process.env.HOME = tmpRoot;
+    delete process.env.CODEX_HOME;
+
+    const defaultAuthDir = path.join(tmpRoot, ".codex");
+    const accountAuthPath = path.join(tmpRoot, "acct-auth.json");
+    await fs.mkdir(defaultAuthDir, { recursive: true });
+    await fs.writeFile(
+      path.join(defaultAuthDir, "auth.json"),
+      JSON.stringify(
+        {
+          tokens: {
+            access_token: "default-token",
+            refresh_token: "refresh-default",
+            account_id: "acct-default",
+          },
+          last_refresh: new Date().toISOString(),
+        },
+        null,
+        2,
+      ) + "\n",
+      "utf8",
+    );
+    await fs.writeFile(
+      accountAuthPath,
+      JSON.stringify(
+        {
+          tokens: {
+            access_token: "account-token",
+            refresh_token: "refresh-account",
+            account_id: "acct-account",
+          },
+          last_refresh: new Date().toISOString(),
+        },
+        null,
+        2,
+      ) + "\n",
+      "utf8",
+    );
+
+    let usageAuthHeader = "";
+    const fetchMock: FetchLike = async (input, init) => {
+      const url = getUrl(input);
+      if (url.includes("/backend-api/wham/usage")) {
+        usageAuthHeader = readHeader(init?.headers, "authorization") ?? "";
+        return new Response(
+          JSON.stringify({
+            rate_limit: {
+              primary_window: {
+                reset_at: 1_700_001_800,
+                limit_window_seconds: 18_000,
+              },
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "x-codex-primary-used-percent": "10",
+            },
+          },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    };
+
+    await fetchRateLimitsViaApiForAuthPath(accountAuthPath, fetchMock);
+    expect(usageAuthHeader).toBe("Bearer account-token");
   });
 });

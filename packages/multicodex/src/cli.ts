@@ -10,7 +10,7 @@ import { readAccountMeta, updateAccountMeta } from "./account-meta";
 import { completeMulticodex } from "./completion";
 import type { RateLimitSnapshot } from "./codex-rpc";
 import { fetchRateLimitsViaRpc } from "./codex-rpc";
-import { fetchRateLimitsViaApi } from "./codex-usage-api";
+import { fetchRateLimitsViaApi, fetchRateLimitsViaApiForAuthPath } from "./codex-usage-api";
 import { rateLimitsToRow, renderLimitsTable, type LimitsRow } from "./limits";
 import { getCachedLimits, setCachedLimits } from "./limits-cache";
 import { padRight, toErrorMessage, truncateOneLine, wantsJsonArgv, writeJson, type JsonEnvelope } from "./cli-output";
@@ -609,14 +609,14 @@ program
   .option("--force", "reclaim a stale lock")
   .option("--no-cache", "disable cached results")
   .option("--refresh", "force refetch live values (bypass cache)")
-  .option("--ttl <seconds>", "cache TTL in seconds (default: 120)", (v: string) => Number.parseFloat(v))
+  .option("--ttl <seconds>", "cache TTL in seconds (default: 300)", (v: string) => Number.parseFloat(v))
   .option("--json", "output JSON")
   .action(async (name: string | undefined, opts: { account?: string; provider?: string; force?: boolean; cache?: boolean; refresh?: boolean; ttl?: number; json?: boolean }) => {
     if (opts.account && name) throw new Error("Use either a positional [name] or --account, not both.");
     const provider = parseLimitsProvider(opts.provider);
     const forceLock = Boolean(opts.force);
     const useCache = opts.cache !== false && opts.refresh !== true;
-    const ttlSeconds = Number.isFinite(opts.ttl) ? Math.max(0, opts.ttl ?? 0) : 120;
+    const ttlSeconds = Number.isFinite(opts.ttl) ? Math.max(0, opts.ttl ?? 0) : 300;
     const ttlMs = ttlSeconds * 1000;
     const requested = opts.account ?? name;
     const targets = requested
@@ -639,40 +639,132 @@ program
       return;
     }
 
+    type AccountLimitsOutcome = {
+      account: string;
+      row?: LimitsRow;
+      result?: { account: string; source: string; provider: LimitsProvider | "cached"; snapshot?: unknown; ageSec?: number };
+      cacheWrite?: { snapshot: RateLimitSnapshot; source: LiveLimitsSource };
+      apiError?: unknown;
+      error?: string;
+    };
+
     let hadError = false;
     const rows: LimitsRow[] = [];
     const results: Array<{ account: string; source: string; provider: LimitsProvider | "cached"; snapshot?: unknown; ageSec?: number }> = [];
     const errors: Array<{ account: string; message: string }> = [];
-    for (const account of targets) {
-      try {
-        if (useCache) {
-          const cached = await getCachedLimits(account, ttlMs);
-          if (cached) {
-            const ageSec = Math.round(cached.ageMs / 1000);
-            const cachedProvider = cached.provider ?? "cached";
-            rows.push(rateLimitsToRow(cached.snapshot, account, `cached ${cachedProvider} ${ageSec}s`));
-            results.push({ account, source: "cached", provider: cachedProvider, snapshot: cached.snapshot, ageSec });
-            continue;
+
+    const outcomes = new Map<string, AccountLimitsOutcome>();
+
+    if (provider === "rpc") {
+      for (const account of targets) {
+        try {
+          if (useCache) {
+            const cached = await getCachedLimits(account, ttlMs);
+            if (cached) {
+              const ageSec = Math.round(cached.ageMs / 1000);
+              const cachedProvider = cached.provider ?? "cached";
+              outcomes.set(account, {
+                account,
+                row: rateLimitsToRow(cached.snapshot, account, `cached ${cachedProvider} ${ageSec}s`),
+                result: { account, source: "cached", provider: cachedProvider, snapshot: cached.snapshot, ageSec },
+              });
+              continue;
+            }
+          }
+
+          if (!opts.json) console.error(`Fetching limits for ${account}...`);
+          const live = await withAccountAuth(
+            { account, forceLock, restorePreviousAuth: true },
+            async () => await fetchLiveLimits(provider),
+          );
+          outcomes.set(account, {
+            account,
+            row: rateLimitsToRow(live.snapshot, account, live.source),
+            result: {
+              account,
+              source: live.source,
+              provider: live.source === "live-api" ? "api" : "rpc",
+              snapshot: live.snapshot,
+            },
+            cacheWrite: { snapshot: live.snapshot, source: live.source },
+          });
+        } catch (error) {
+          outcomes.set(account, { account, error: toErrorMessage(error) });
+        }
+      }
+    } else {
+      const apiOutcomes = await Promise.all(
+        targets.map(async (account): Promise<AccountLimitsOutcome> => {
+          try {
+            if (useCache) {
+              const cached = await getCachedLimits(account, ttlMs);
+              if (cached) {
+                const ageSec = Math.round(cached.ageMs / 1000);
+                const cachedProvider = cached.provider ?? "cached";
+                return {
+                  account,
+                  row: rateLimitsToRow(cached.snapshot, account, `cached ${cachedProvider} ${ageSec}s`),
+                  result: { account, source: "cached", provider: cachedProvider, snapshot: cached.snapshot, ageSec },
+                };
+              }
+            }
+
+            if (!opts.json) console.error(`Fetching limits for ${account}...`);
+            const snapshot = await fetchRateLimitsViaApiForAuthPath(accountAuthPath(account));
+            return {
+              account,
+              row: rateLimitsToRow(snapshot, account, "live-api"),
+              result: { account, source: "live-api", provider: "api", snapshot },
+              cacheWrite: { snapshot, source: "live-api" },
+            };
+          } catch (error) {
+            if (provider === "auto") return { account, apiError: error };
+            return { account, error: toErrorMessage(error) };
+          }
+        }),
+      );
+
+      for (const outcome of apiOutcomes) outcomes.set(outcome.account, outcome);
+
+      if (provider === "auto") {
+        for (const account of targets) {
+          const current = outcomes.get(account);
+          if (!current?.apiError) continue;
+
+          try {
+            const snapshot = await withAccountAuth(
+              { account, forceLock, restorePreviousAuth: true },
+              async () => await fetchRateLimitsViaRpc(),
+            );
+            outcomes.set(account, {
+              account,
+              row: rateLimitsToRow(snapshot, account, "live-rpc"),
+              result: { account, source: "live-rpc", provider: "rpc", snapshot },
+              cacheWrite: { snapshot, source: "live-rpc" },
+            });
+          } catch (rpcError) {
+            const apiMessage = toErrorMessage(current.apiError);
+            const rpcMessage = toErrorMessage(rpcError);
+            outcomes.set(account, {
+              account,
+              error: `API failed (${apiMessage}); RPC fallback failed (${rpcMessage})`,
+            });
           }
         }
+      }
+    }
 
-        if (!opts.json) console.error(`Fetching limits for ${account}...`);
-        const live = await withAccountAuth(
-          { account, forceLock, restorePreviousAuth: true },
-          async () => await fetchLiveLimits(provider),
-        );
-        await setCachedLimits(account, live.snapshot, live.source);
-        rows.push(rateLimitsToRow(live.snapshot, account, live.source));
-        results.push({
-          account,
-          source: live.source,
-          provider: live.source === "live-api" ? "api" : "rpc",
-          snapshot: live.snapshot,
-        });
-      } catch (error) {
+    for (const account of targets) {
+      const outcome = outcomes.get(account);
+      if (!outcome) continue;
+      if (outcome.cacheWrite) {
+        await setCachedLimits(account, outcome.cacheWrite.snapshot, outcome.cacheWrite.source);
+      }
+      if (outcome.row) rows.push(outcome.row);
+      if (outcome.result) results.push(outcome.result);
+      if (outcome.error) {
         hadError = true;
-        const message = toErrorMessage(error);
-        errors.push({ account, message });
+        errors.push({ account, message: outcome.error });
       }
     }
     if (opts.json) {
