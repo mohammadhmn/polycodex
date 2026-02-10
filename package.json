@@ -1,6 +1,6 @@
 {
   "name": "multicodex",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Multi-account wrapper for the Codex CLI",
   "type": "module",
   "license": "MIT",

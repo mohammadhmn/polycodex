@@ -176,7 +176,7 @@ program
   .name("multicodex")
   .description("Manage multiple Codex accounts (OAuth)")
   // Keep in sync with package.json manually.
-  .version("0.1.7", "-V, --version", "output the version number")
+  .version("0.1.8", "-V, --version", "output the version number")
   .enablePositionalOptions()
   .showHelpAfterError(true)
   .showSuggestionAfterError(true);
