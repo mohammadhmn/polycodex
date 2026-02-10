@@ -30,6 +30,7 @@ xcuserdata/
 
 # Swift Package Manager
 .swiftpm/
+packages/multicodex-macos/Sources/MultiCodexMenu/Resources/multicodex-cli.js
 
 # macOS system
 .DS_Store
