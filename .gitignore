@@ -1,42 +1,69 @@
-# dependencies (bun install)
-node_modules
+# === Node.js ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# output
-out
-dist
+# === Bun ===
+bun.lockb
+
+# === Build Output ===
+dist/
+out/
+build/
 *.tgz
-*.log
 
+# === TypeScript ===
+*.tsbuildinfo
 
-# code coverage
-coverage
+# === Swift / Xcode / macOS ===
+# Build artifacts
+.build/
+DerivedData/
+*.dmg
+
+# Xcode user-specific
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Swift Package Manager
+.swiftpm/
+
+# macOS system
+.DS_Store
+
+# === Testing & Coverage ===
+coverage/
 *.lcov
 
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+# === Logs ===
+logs/
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# dotenv environment variable files
+# === Environment & Secrets ===
 .env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.local
+.env.*.local
 
-# caches
+# === Caches ===
+.cache/
 .eslintcache
-.cache
-*.tsbuildinfo
 
-# IntelliJ based IDEs
-.idea
+# === IDEs & Editors ===
+.idea/
+.vscode/
+.cursor/
+.run/
 
-# Finder (MacOS) folder config
-.DS_Store
+# === Python ===
+__pycache__/
+*.pyc
 
-# editor tooling
-.cursor
-
-# local packaging artifacts
-packages
+# === Local Artifacts ===
+packages/
