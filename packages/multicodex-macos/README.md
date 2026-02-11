@@ -48,6 +48,7 @@ From `packages/multicodex-macos`:
 ```bash
 just list                 # show all recipes
 just doctor               # check swift/bun/node + sync bundled CLI
+just icon                 # generate icon PNGs + AppIcon.icns from Assets/AppIcon.appiconset/icon-master.svg
 just dev                  # package debug app and run it
 just build-debug          # debug build
 just build-release        # release build
