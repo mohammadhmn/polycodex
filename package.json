@@ -6,25 +6,20 @@
   ],
   "scripts": {
     "dev": "turbo dev",
+    "check": "bun run typecheck && bun run test && bun run build",
     "build": "turbo build",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
-    "release": "bun run scripts/release.ts cli",
+    "release": "bun run scripts/release.ts both",
     "release:cli": "bun run scripts/release.ts cli",
     "release:patch": "bun run scripts/release.ts cli --patch",
     "release:minor": "bun run scripts/release.ts cli --minor",
     "release:major": "bun run scripts/release.ts cli --major",
+    "release:plan": "bun run scripts/release.ts cli --dry-run",
     "release:macos": "bun run scripts/release.ts macos",
-    "release:both": "bun run scripts/release.ts both",
-    "macos:just:list": "cd apps/macos && just list",
-    "macos:doctor": "cd apps/macos && just doctor",
     "macos:dev": "cd apps/macos && just dev",
-    "macos:build:debug": "cd apps/macos && just build-debug",
-    "macos:build:release": "cd apps/macos && just build-release",
-    "macos:dist": "cd apps/macos && just dist",
     "macos:dmg": "cd apps/macos && just dmg",
-    "macos:logs": "cd apps/macos && just logs",
-    "macos:reset-settings": "cd apps/macos && just reset-settings"
+    "macos:ci": "cd apps/macos && just ci"
   },
   "devDependencies": {
     "turbo": "^2.5.6"
