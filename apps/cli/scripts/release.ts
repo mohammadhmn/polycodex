@@ -37,6 +37,63 @@ function runCapture(cmd: string): string {
   return execSync(cmd, { stdio: ["ignore", "pipe", "pipe"] }).toString("utf8");
 }
 
+function errorOutput(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  const maybe = error as { stdout?: unknown; stderr?: unknown };
+  const stdout =
+    typeof maybe.stdout === "string"
+      ? maybe.stdout
+      : Buffer.isBuffer(maybe.stdout)
+        ? maybe.stdout.toString("utf8")
+        : "";
+  const stderr =
+    typeof maybe.stderr === "string"
+      ? maybe.stderr
+      : Buffer.isBuffer(maybe.stderr)
+        ? maybe.stderr.toString("utf8")
+        : "";
+  return `${stdout}\n${stderr}`.trim();
+}
+
+function ensureNpmPublishReady(packageName: string): void {
+  let npmUser = "";
+  try {
+    npmUser = runCapture("npm whoami").trim();
+  } catch (error) {
+    const details = errorOutput(error);
+    throw new Error(
+      [
+        "npm authentication failed before release.",
+        "Run `npm login` (or refresh your token), then retry.",
+        details ? `npm output:\n${details}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
+
+  if (!npmUser) {
+    throw new Error("npm authentication returned no user. Run `npm login` and retry.");
+  }
+
+  console.log(`npm auth OK as ${npmUser}.`);
+
+  try {
+    run("npm publish --dry-run");
+  } catch (error) {
+    const details = errorOutput(error);
+    throw new Error(
+      [
+        `npm publish preflight failed for ${packageName}.`,
+        "Fix npm auth/package permissions first, then rerun release.",
+        details ? `npm output:\n${details}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
+}
+
 function parseArgs(argv: string[]): {
   type: ReleaseType;
   version?: string;
@@ -235,6 +292,10 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (opts.publish) {
+    ensureNpmPublishReady(packageName);
+  }
+
   await updatePackageVersion(nextVersion);
   await updateCliVersion(nextVersion);
 
@@ -256,7 +317,21 @@ async function main(): Promise<void> {
 
   if (opts.publish) {
     if (!opts.commit) throw new Error("--no-commit cannot be used with publishing enabled.");
-    run("npm publish");
+    try {
+      run("npm publish");
+    } catch (error) {
+      const details = errorOutput(error);
+      throw new Error(
+        [
+          "npm publish failed.",
+          "No tags were pushed, but you may have a local release commit.",
+          "Fix npm auth/package access and rerun.",
+          details ? `npm output:\n${details}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    }
   }
 
   if (opts.tag) {
