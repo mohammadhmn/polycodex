@@ -292,12 +292,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  await updatePackageVersion(nextVersion);
+  await updateCliVersion(nextVersion);
+
   if (opts.publish) {
     ensureNpmPublishReady(packageName);
   }
-
-  await updatePackageVersion(nextVersion);
-  await updateCliVersion(nextVersion);
 
   run("bun run typecheck");
   run("bun test");
