@@ -124,24 +124,11 @@ final class UsageMenuViewModel: ObservableObject {
     }
 
     func switchToProfile(named name: String) {
-        guard switchingProfileName == nil else {
-            return
-        }
-
-        Task {
-            switchingProfileName = name
-            defer { switchingProfileName = nil }
-
-            do {
-                try await cli.switchAccount(name: name)
-                lastRefreshError = nil
-                profileActionError = nil
-                profileActionMessage = "Now using \(name)."
-                await performRefresh(refreshLive: true)
-            } catch {
-                lastRefreshError = error.localizedDescription
-                cliResolutionHint = cli.resolutionHint
-            }
+        runSwitchAction(named: name) {
+            try await self.cli.switchAccount(name: name)
+            self.lastRefreshError = nil
+            self.setProfileFeedback(message: "Now using \(name).", error: nil)
+            await self.performRefresh(refreshLive: true)
         }
     }
 
@@ -153,23 +140,9 @@ final class UsageMenuViewModel: ObservableObject {
             return
         }
 
-        guard profileActionInFlightName == nil else {
-            return
-        }
-
-        Task {
-            profileActionInFlightName = name
-            defer { profileActionInFlightName = nil }
-
-            do {
-                _ = try await cli.addAccount(name: name)
-                profileActionError = nil
-                profileActionMessage = "Added profile \(name)."
-                await performRefresh(refreshLive: false)
-            } catch {
-                profileActionError = error.localizedDescription
-                profileActionMessage = nil
-            }
+        runProfileAction(for: name) {
+            _ = try await self.cli.addAccount(name: name)
+            return .success("Added profile \(name).")
         }
     }
 
@@ -187,94 +160,34 @@ final class UsageMenuViewModel: ObservableObject {
             return
         }
 
-        guard profileActionInFlightName == nil else {
-            return
-        }
-
-        Task {
-            profileActionInFlightName = oldName
-            defer { profileActionInFlightName = nil }
-
-            do {
-                _ = try await cli.renameAccount(from: oldName, to: newName)
-                profileActionError = nil
-                profileActionMessage = "Renamed \(oldName) to \(newName)."
-                await performRefresh(refreshLive: false)
-            } catch {
-                profileActionError = error.localizedDescription
-                profileActionMessage = nil
-            }
+        runProfileAction(for: oldName) {
+            _ = try await self.cli.renameAccount(from: oldName, to: newName)
+            return .success("Renamed \(oldName) to \(newName).")
         }
     }
 
     func removeProfile(named name: String, deleteData: Bool) {
-        guard profileActionInFlightName == nil else {
-            return
-        }
-
-        Task {
-            profileActionInFlightName = name
-            defer { profileActionInFlightName = nil }
-
-            do {
-                _ = try await cli.removeAccount(name: name, deleteData: deleteData)
-                profileActionError = nil
-                profileActionMessage = deleteData
-                    ? "Removed \(name) and deleted stored data."
-                    : "Removed \(name)."
-                await performRefresh(refreshLive: false)
-            } catch {
-                profileActionError = error.localizedDescription
-                profileActionMessage = nil
-            }
+        runProfileAction(for: name) {
+            _ = try await self.cli.removeAccount(name: name, deleteData: deleteData)
+            return .success(deleteData ? "Removed \(name) and deleted stored data." : "Removed \(name).")
         }
     }
 
     func importCurrentAuth(into name: String) {
-        guard profileActionInFlightName == nil else {
-            return
-        }
-
-        Task {
-            profileActionInFlightName = name
-            defer { profileActionInFlightName = nil }
-
-            do {
-                _ = try await cli.importDefaultAuth(into: name)
-                profileActionError = nil
-                profileActionMessage = "Imported current ~/.codex/auth.json into \(name)."
-                await performRefresh(refreshLive: false)
-            } catch {
-                profileActionError = error.localizedDescription
-                profileActionMessage = nil
-            }
+        runProfileAction(for: name) {
+            _ = try await self.cli.importDefaultAuth(into: name)
+            return .success("Imported current ~/.codex/auth.json into \(name).")
         }
     }
 
     func checkLoginStatus(for name: String) {
-        guard profileActionInFlightName == nil else {
-            return
-        }
-
-        Task {
-            profileActionInFlightName = name
-            defer { profileActionInFlightName = nil }
-
-            do {
-                let status = try await cli.fetchStatus(name: name)
-                let summary = status.output.trimmingCharacters(in: .whitespacesAndNewlines)
-                if status.exitCode == 0 {
-                    profileActionError = nil
-                    profileActionMessage = summary.isEmpty ? "\(name): login status is OK." : "\(name): \(summary)"
-                } else {
-                    profileActionError = summary.isEmpty ? "\(name): login check failed." : "\(name): \(summary)"
-                    profileActionMessage = nil
-                }
-                await performRefresh(refreshLive: false)
-            } catch {
-                profileActionError = error.localizedDescription
-                profileActionMessage = nil
+        runProfileAction(for: name) {
+            let status = try await self.cli.fetchStatus(name: name)
+            let summary = status.output.trimmingCharacters(in: .whitespacesAndNewlines)
+            if status.exitCode == 0 {
+                return .success(summary.isEmpty ? "\(name): login status is OK." : "\(name): \(summary)")
             }
+            return .failure(summary.isEmpty ? "\(name): login check failed." : "\(name): \(summary)")
         }
     }
 
@@ -285,17 +198,17 @@ final class UsageMenuViewModel: ObservableObject {
 
         do {
             try cli.openLoginInTerminal(account: name)
-            profileActionError = nil
-            profileActionMessage = "Opened Terminal login for \(name). Complete login there, then refresh."
+            setProfileFeedback(
+                message: "Opened Terminal login for \(name). Complete login there, then refresh.",
+                error: nil
+            )
         } catch {
-            profileActionError = error.localizedDescription
-            profileActionMessage = nil
+            setProfileFeedback(message: nil, error: error.localizedDescription)
         }
     }
 
     func clearProfileActionFeedback() {
-        profileActionError = nil
-        profileActionMessage = nil
+        setProfileFeedback(message: nil, error: nil)
     }
 
     func toggleResetDisplayMode() {
@@ -355,7 +268,7 @@ final class UsageMenuViewModel: ObservableObject {
             let accounts = try await cli.fetchAccounts()
             let limits = try await cli.fetchLimits(refreshLive: refreshLive)
 
-            profiles = mergeProfiles(accounts: accounts, limits: limits)
+            profiles = UsageDataService.mergeProfiles(accounts: accounts, limits: limits)
             lastUpdatedAt = Date()
             cliResolutionHint = cli.resolutionHint
 
@@ -372,33 +285,61 @@ final class UsageMenuViewModel: ObservableObject {
         }
     }
 
-    private func mergeProfiles(accounts: AccountsListPayload, limits: LimitsPayload) -> [ProfileUsage] {
-        let resultByAccount = Dictionary(uniqueKeysWithValues: limits.results.map { ($0.account, $0) })
-        let errorsByAccount = Dictionary(uniqueKeysWithValues: limits.errors.map { ($0.account, $0.message) })
+    private enum ProfileActionOutcome {
+        case success(String)
+        case failure(String)
+    }
 
-        let mapped = accounts.accounts.map { account in
-            let result = resultByAccount[account.name]
-            let usage = UsageFormatter.usageSummary(from: result?.snapshot)
-            let source = UsageFormatter.sourceLabel(from: result)
-            let usageError = errorsByAccount[account.name]
+    private func setProfileFeedback(message: String?, error: String?) {
+        profileActionMessage = message
+        profileActionError = error
+    }
 
-            return ProfileUsage(
-                name: account.name,
-                isCurrent: account.isCurrent || account.name == accounts.currentAccount,
-                hasAuth: account.hasAuth,
-                lastUsedAt: account.lastUsedAt,
-                lastLoginStatus: account.lastLoginStatus,
-                usage: usage,
-                source: source,
-                usageError: usageError
-            )
+    private func runProfileAction(
+        for profileName: String,
+        operation: @escaping () async throws -> ProfileActionOutcome
+    ) {
+        guard profileActionInFlightName == nil else {
+            return
         }
 
-        return mapped.sorted { lhs, rhs in
-            if lhs.isCurrent != rhs.isCurrent {
-                return lhs.isCurrent
+        Task {
+            profileActionInFlightName = profileName
+            defer { profileActionInFlightName = nil }
+
+            do {
+                switch try await operation() {
+                case let .success(message):
+                    setProfileFeedback(message: message, error: nil)
+                case let .failure(message):
+                    setProfileFeedback(message: nil, error: message)
+                }
+                await performRefresh(refreshLive: false)
+            } catch {
+                setProfileFeedback(message: nil, error: error.localizedDescription)
             }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
     }
+
+    private func runSwitchAction(
+        named name: String,
+        operation: @escaping () async throws -> Void
+    ) {
+        guard switchingProfileName == nil else {
+            return
+        }
+
+        Task {
+            switchingProfileName = name
+            defer { switchingProfileName = nil }
+
+            do {
+                try await operation()
+            } catch {
+                lastRefreshError = error.localizedDescription
+                cliResolutionHint = cli.resolutionHint
+            }
+        }
+    }
+
 }

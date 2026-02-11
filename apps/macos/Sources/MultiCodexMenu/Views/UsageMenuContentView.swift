@@ -40,11 +40,11 @@ struct UsageMenuContentView: View {
             Spacer()
 
             HStack(spacing: 6) {
-                actionButton("Cache", systemImage: "arrow.clockwise", prominent: false) {
+                ActionPillButton(title: "Cache", symbol: "arrow.clockwise", prominent: false, isDisabled: viewModel.isRefreshing) {
                     viewModel.refresh()
                 }
 
-                actionButton("Live", systemImage: "bolt.horizontal.fill", prominent: true) {
+                ActionPillButton(title: "Live", symbol: "bolt.horizontal.fill", prominent: true, isDisabled: viewModel.isRefreshing) {
                     viewModel.refreshLive()
                 }
             }
@@ -80,7 +80,7 @@ struct UsageMenuContentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("No profiles")
                     .font(.subheadline.weight(.semibold))
-                Text("Run `multicodex login`, then refresh.")
+                Text("Add a profile, then run `multicodex run <name> -- codex login`.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -141,24 +141,6 @@ struct UsageMenuContentView: View {
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private func actionButton(_ title: String, systemImage: String, prominent: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
-                .labelStyle(.titleAndIcon)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(prominent ? Color.accentColor.opacity(0.9) : Color.secondary.opacity(0.15))
-                )
-                .foregroundStyle(prominent ? Color.white : Color.primary)
-        }
-        .buttonStyle(.plain)
-        .disabled(viewModel.isRefreshing)
-        .opacity(viewModel.isRefreshing ? 0.7 : 1)
     }
 
     private func openSettingsWindow() {
