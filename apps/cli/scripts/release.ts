@@ -16,6 +16,7 @@ Options:
   --no-tag                     Skip git tag (default: tag)
   --no-push                    Skip pushing to origin (default: push)
   --no-publish                 Skip npm publish (default: publish)
+  --dry-run                    Print planned release actions without mutating git/npm state
 
 Examples:
   bun run release
@@ -43,6 +44,7 @@ function parseArgs(argv: string[]): {
   tag: boolean;
   push: boolean;
   publish: boolean;
+  dryRun: boolean;
 } {
   let type: ReleaseType = "patch";
   let version: string | undefined;
@@ -50,6 +52,7 @@ function parseArgs(argv: string[]): {
   let tag = true;
   let push = true;
   let publish = true;
+  let dryRun = false;
 
   const args = [...argv];
   while (args.length) {
@@ -95,11 +98,15 @@ function parseArgs(argv: string[]): {
       push = false;
       continue;
     }
+    if (a === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
     console.error(`Unknown arg: ${a}`);
     usage(2);
   }
 
-  return { type, version, commit, tag, push, publish };
+  return { type, version, commit, tag, push, publish, dryRun };
 }
 
 function isValidSemver(v: string): boolean {
@@ -195,7 +202,9 @@ async function updateCliVersion(newVersion: string): Promise<void> {
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
 
-  await ensureCleanGitTree();
+  if (!opts.dryRun) {
+    await ensureCleanGitTree();
+  }
 
   const pkgPath = path.join(process.cwd(), "package.json");
   const pkgRaw = await fs.readFile(pkgPath, "utf8");
@@ -214,6 +223,16 @@ async function main(): Promise<void> {
   console.log(`Releasing ${packageName} v${nextVersion}`);
   if (adjusted) {
     console.log(`Note: requested bump was already published; auto-selected next available patch v${nextVersion}.`);
+  }
+  if (opts.dryRun) {
+    console.log("Dry run mode enabled. No changes will be written, committed, tagged, pushed, or published.");
+    console.log(`Planned version update: ${pkg.version} -> ${nextVersion}`);
+    console.log(`Planned checks: typecheck, test, build, pack`);
+    console.log(`Planned commit: ${opts.commit ? "yes" : "no"}`);
+    console.log(`Planned publish: ${opts.publish ? "yes" : "no"}`);
+    console.log(`Planned tag: ${opts.tag ? `v${nextVersion}` : "no"}`);
+    console.log(`Planned push: ${opts.push ? "yes" : "no"}`);
+    return;
   }
 
   await updatePackageVersion(nextVersion);
@@ -235,6 +254,11 @@ async function main(): Promise<void> {
     run(`git commit -m ${JSON.stringify(`chore: release v${nextVersion}`)}`);
   }
 
+  if (opts.publish) {
+    if (!opts.commit) throw new Error("--no-commit cannot be used with publishing enabled.");
+    run("npm publish");
+  }
+
   if (opts.tag) {
     if (!opts.commit) throw new Error("--no-commit cannot be used with tagging enabled.");
     run(`git tag -a v${nextVersion} -m ${JSON.stringify(`v${nextVersion}`)}`);
@@ -244,11 +268,6 @@ async function main(): Promise<void> {
     if (!opts.commit) throw new Error("--push requires committing the release.");
     run("git push");
     if (opts.tag) run(`git push origin v${nextVersion}`);
-  }
-
-  if (opts.publish) {
-    if (!opts.commit) throw new Error("--no-commit cannot be used with publishing enabled.");
-    run("npm publish");
   }
 
   console.log("Done.");

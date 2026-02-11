@@ -19,22 +19,20 @@ const repoRoot = path.resolve(import.meta.dir, "..");
 function usage(exitCode: number): never {
   const msg = `
 Usage:
-  bun run release [cli-release-args...]
+  bun run release [--no-push] [cli-release-args...]
   bun run release:cli -- [cli-release-args...]
   bun run release:macos -- [--version <x.y.z>] [--no-push]
-  bun run release:both -- [--no-push] [cli-release-args...]
 
 Examples:
-  bun run release:cli
+  bun run release
   bun run release -- --minor
   bun run release:cli -- --minor
   bun run release:patch
   bun run release:macos
   bun run release:macos -- --version 0.2.0
-  bun run release:both
-  bun run release:both -- --minor --no-push
-  bun run release:both -- --version 0.2.0 --no-publish
-  bun run release:both -- --no-push -- --no-push
+  bun run release -- --minor --no-push
+  bun run release -- --version 0.2.0 --no-publish
+  bun run release -- --no-push -- --no-push
 `.trim();
 
   console.error(msg);
