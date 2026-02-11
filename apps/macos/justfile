@@ -91,7 +91,7 @@ clean:
     if [[ -d "{{build_root}}" ]]; then find "{{build_root}}" -mindepth 1 -delete; fi
 
 release version:
-    scripts/release.sh "{{version}}"
+    bash ./scripts/release.sh "{{version}}"
 
 kickoff-release version="patch":
     scripts/release.sh --bump "{{version}}"
