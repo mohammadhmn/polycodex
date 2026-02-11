@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct MultiCodexMenuApp: App {
+    @NSApplicationDelegateAdaptor(MultiCodexAppDelegate.self) private var appDelegate
     @StateObject private var viewModel = UsageMenuViewModel()
 
     var body: some Scene {
@@ -19,16 +20,9 @@ struct MultiCodexMenuApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Settings {
+        WindowGroup("Settings", id: "settings") {
             SettingsContentView(viewModel: viewModel)
-                .padding(16)
-                .frame(width: 640)
-        }
-
-        WindowGroup("Settings", id: "settings-window") {
-            SettingsContentView(viewModel: viewModel)
-                .padding(16)
-                .frame(minWidth: 680, minHeight: 760)
+                .frame(minWidth: 700, minHeight: 780)
         }
     }
 }
