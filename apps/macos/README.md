@@ -1,4 +1,4 @@
-# MultiCodexMenu (macOS Menu Bar App)
+# MultiCodex (macOS Menu Bar App)
 
 Native macOS SwiftUI menu bar app for `multicodex`.
 
@@ -31,7 +31,7 @@ From repo root:
 ```bash
 cd apps/macos
 swift build
-swift run MultiCodexMenu
+swift run MultiCodex
 ```
 
 With Bun workspaces / Turborepo:
@@ -52,13 +52,28 @@ just icon                 # generate icon PNGs + AppIcon.icns from Assets/AppIco
 just dev                  # package debug app and run it
 just build-debug          # debug build
 just build-release        # release build
-just package-app debug    # create build/dist/MultiCodexMenu.app
+just package-app debug    # create build/dist/MultiCodex.app
 just dist                 # package release app to build/dist/
-just dmg                  # create build/dist/MultiCodexMenu.dmg
+just dmg                  # create build/dist/MultiCodex.dmg
 just install              # copy app to /Applications
 just logs                 # stream app logs
 just reset-settings       # clear app defaults domain
 just ci                   # doctor + build + test + typecheck
+```
+
+## GitHub release (DMG)
+
+This workspace is released from the monorepo root via GitHub Actions.
+
+- Workflow: `/Users/mohamadhosein/Workspace/utilities/multicodex/.github/workflows/release-macos.yml`
+- Trigger tag format: `macos-vMAJOR.MINOR.PATCH` (example: `macos-v0.1.0`)
+- Release artifact: `MultiCodex.dmg`
+
+From repo root:
+
+```bash
+git tag -a macos-v0.1.0 -m "macos-v0.1.0"
+git push origin macos-v0.1.0
 ```
 
 ## Command resolution

@@ -10,6 +10,11 @@ Use the release helper script. It bumps versions, runs checks, builds, and packs
 - Major bump: `bun run release --major`
 - Full release (explicit version): `bun run release --version X.Y.Z`
 
+Monorepo note:
+- CLI tags remain `vX.Y.Z`.
+- macOS app releases use a separate tag namespace: `macos-vX.Y.Z`.
+- Keeping separate prefixes avoids accidental cross-release triggers.
+
 Notes:
 - The script refuses to run if `git status` is not clean.
 - `npm publish` may prompt for verification (2FA / browser), depending on your npm setup.
