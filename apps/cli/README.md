@@ -82,6 +82,9 @@ Fish:
 - Tests: `bun test`
 - Build (Node CLI): `bun run build`
 
+Architecture notes:
+- `docs/architecture.md`
+
 ## Publish
 
 - `bun run build`
