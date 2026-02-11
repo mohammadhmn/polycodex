@@ -7,18 +7,22 @@ struct SettingsContentView: View {
     @State private var renameDrafts: [String: String] = [:]
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("MultiCodex Menu Settings")
-                    .font(.title3.weight(.semibold))
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+                .ignoresSafeArea()
 
-                profilesAndLoginGroup
-                nodeRuntimeGroup
-                usageDisplayGroup
-                dataGroup
-                diagnosticsGroup
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    headerCard
+                    profilesCard
+                    runtimeCard
+                    preferencesCard
+                    diagnosticsCard
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .scrollIndicators(.hidden)
         }
         .onAppear {
             nodePathDraft = viewModel.customNodePath
@@ -30,68 +34,81 @@ struct SettingsContentView: View {
         }
     }
 
-    private var profilesAndLoginGroup: some View {
-        GroupBox("Profiles & Login") {
+    private var headerCard: some View {
+        SettingsCard {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Settings")
+                    .font(.title3.weight(.semibold))
+
+                Text("Manage profiles, login flows, runtime path, and refresh behavior.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    simpleActionButton("Refresh", symbol: "arrow.clockwise") {
+                        viewModel.refresh()
+                    }
+
+                    simpleActionButton("Refresh Live", symbol: "bolt.horizontal.fill", prominent: true) {
+                        viewModel.refreshLive()
+                    }
+                }
+            }
+        }
+    }
+
+    private var profilesCard: some View {
+        SettingsCard {
             VStack(alignment: .leading, spacing: 10) {
+                Text("Profiles & Login")
+                    .font(.headline)
+
                 HStack(spacing: 8) {
                     TextField("new-profile", text: $newProfileName)
                         .textFieldStyle(.roundedBorder)
 
-                    Button("Add") {
+                    simpleActionButton("Add", symbol: "plus", prominent: true) {
                         viewModel.addProfile(named: newProfileName)
+                        newProfileName = ""
                     }
-                    .buttonStyle(.borderedProminent)
                     .disabled(newProfileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isProfileActionRunning)
                 }
 
                 if let message = viewModel.profileActionMessage {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.green)
+                    feedbackRow(message, color: .green)
                 }
 
                 if let error = viewModel.profileActionError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    feedbackRow(error, color: .red)
                 }
 
                 if viewModel.profiles.isEmpty {
                     Text("No profiles configured.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
                 } else {
                     VStack(spacing: 8) {
                         ForEach(viewModel.profiles) { profile in
-                            profileManagementRow(profile)
+                            profileRow(profile)
                         }
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func profileManagementRow(_ profile: ProfileUsage) -> some View {
+    private func profileRow(_ profile: ProfileUsage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text(profile.name)
                     .font(.subheadline.weight(.semibold))
 
                 if profile.isCurrent {
-                    Text("Current")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.14), in: Capsule())
+                    pill("Current", color: .accentColor)
                 }
-
                 if !profile.hasAuth {
-                    Text("No auth")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.orange.opacity(0.15), in: Capsule())
+                    pill("No auth", color: .orange)
                 }
 
                 Spacer(minLength: 8)
@@ -104,23 +121,20 @@ struct SettingsContentView: View {
 
             HStack(spacing: 8) {
                 if !profile.isCurrent {
-                    Button("Use") {
+                    simpleActionButton("Use", symbol: "checkmark.circle.fill", prominent: true) {
                         viewModel.switchToProfile(named: profile.name)
                     }
-                    .buttonStyle(.borderedProminent)
                     .disabled(isProfileActionRunning)
                 }
 
-                Button("Login…") {
+                simpleActionButton("Login", symbol: "person.crop.circle.badge.plus") {
                     viewModel.openLoginInTerminal(for: profile.name)
                 }
-                .buttonStyle(.bordered)
                 .disabled(isProfileActionRunning)
 
-                Button("Status") {
+                simpleActionButton("Status", symbol: "person.crop.circle.badge.checkmark") {
                     viewModel.checkLoginStatus(for: profile.name)
                 }
-                .buttonStyle(.bordered)
                 .disabled(isProfileActionRunning)
 
                 Menu("More") {
@@ -145,10 +159,9 @@ struct SettingsContentView: View {
                 TextField("rename", text: renameBinding(for: profile.name))
                     .textFieldStyle(.roundedBorder)
 
-                Button("Rename") {
+                simpleActionButton("Rename", symbol: "pencil") {
                     viewModel.renameProfile(from: profile.name, to: renameDrafts[profile.name] ?? profile.name)
                 }
-                .buttonStyle(.bordered)
                 .disabled(cannotRename(profile.name) || isProfileActionRunning)
             }
 
@@ -159,33 +172,34 @@ struct SettingsContentView: View {
                     .lineLimit(2)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    private var nodeRuntimeGroup: some View {
-        GroupBox("Node runtime") {
-            VStack(alignment: .leading, spacing: 8) {
+    private var runtimeCard: some View {
+        SettingsCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Node Runtime")
+                    .font(.headline)
+
                 TextField("/opt/homebrew/bin/node", text: $nodePathDraft)
                     .textFieldStyle(.roundedBorder)
 
-                HStack {
-                    Button("Save") {
+                HStack(spacing: 8) {
+                    simpleActionButton("Save", symbol: "checkmark", prominent: true) {
                         viewModel.updateCustomNodePath(nodePathDraft)
                     }
-                    .buttonStyle(.borderedProminent)
                     .disabled(normalized(nodePathDraft) == viewModel.customNodePath)
 
-                    Button("Choose Node…") {
+                    simpleActionButton("Choose", symbol: "folder") {
                         viewModel.chooseCustomNodePath()
                     }
-                    .buttonStyle(.bordered)
 
-                    Button("Use Auto") {
+                    simpleActionButton("Use Auto", symbol: "sparkles") {
                         nodePathDraft = ""
                         viewModel.clearCustomNodePath()
                     }
-                    .buttonStyle(.bordered)
                     .disabled(viewModel.customNodePath.isEmpty)
                 }
 
@@ -193,44 +207,34 @@ struct SettingsContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private var usageDisplayGroup: some View {
-        GroupBox("Usage display") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Reset labels")
-                    .font(.subheadline.weight(.semibold))
-                Button(viewModel.resetDisplayMode.buttonLabel) {
-                    viewModel.toggleResetDisplayMode()
+    private var preferencesCard: some View {
+        SettingsCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Preferences")
+                    .font(.headline)
+
+                HStack {
+                    Text("Reset labels")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    simpleActionButton(viewModel.resetDisplayMode.buttonLabel, symbol: "clock") {
+                        viewModel.toggleResetDisplayMode()
+                    }
                 }
-                .buttonStyle(.bordered)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private var dataGroup: some View {
-        GroupBox("Data") {
-            HStack {
-                Button("Refresh") {
-                    viewModel.refresh()
-                }
-                .buttonStyle(.bordered)
+    private var diagnosticsCard: some View {
+        SettingsCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Diagnostics")
+                    .font(.headline)
 
-                Button("Refresh Live") {
-                    viewModel.refreshLive()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var diagnosticsGroup: some View {
-        GroupBox("Diagnostics") {
-            VStack(alignment: .leading, spacing: 8) {
                 if let hint = viewModel.cliResolutionHint {
                     Text(hint)
                         .font(.caption)
@@ -242,12 +246,24 @@ struct SettingsContentView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Button("Open multicodex config directory") {
+                simpleActionButton("Open multicodex config directory", symbol: "folder.fill") {
                     viewModel.openMulticodexConfigDirectory()
                 }
-                .buttonStyle(.bordered)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func feedbackRow(_ text: String, color: Color) -> some View {
+        HStack {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(color)
+            Spacer()
+            Button("Dismiss") {
+                viewModel.clearProfileActionFeedback()
+            }
+            .buttonStyle(.plain)
+            .font(.caption2)
         }
     }
 
@@ -278,5 +294,54 @@ struct SettingsContentView: View {
 
     private func normalized(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func pill(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.14), in: Capsule())
+            .foregroundStyle(color)
+    }
+
+    private func simpleActionButton(_ title: String, symbol: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.caption.weight(.semibold))
+                .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(prominent ? Color.accentColor.opacity(0.9) : Color.secondary.opacity(0.14))
+                )
+                .foregroundStyle(prominent ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct SettingsCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.secondary.opacity(0.16), lineWidth: 1)
+        )
     }
 }
