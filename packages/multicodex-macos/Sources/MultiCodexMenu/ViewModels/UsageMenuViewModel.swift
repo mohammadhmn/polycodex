@@ -9,6 +9,9 @@ final class UsageMenuViewModel: ObservableObject {
     @Published private(set) var lastUpdatedAt: Date?
     @Published private(set) var switchingProfileName: String?
     @Published private(set) var cliResolutionHint: String?
+    @Published private(set) var profileActionInFlightName: String?
+    @Published private(set) var profileActionMessage: String?
+    @Published private(set) var profileActionError: String?
     @Published var customNodePath: String
     @Published var resetDisplayMode: ResetDisplayMode
 
@@ -132,12 +135,167 @@ final class UsageMenuViewModel: ObservableObject {
             do {
                 try await cli.switchAccount(name: name)
                 lastRefreshError = nil
+                profileActionError = nil
+                profileActionMessage = "Now using \(name)."
                 await performRefresh(refreshLive: true)
             } catch {
                 lastRefreshError = error.localizedDescription
                 cliResolutionHint = cli.resolutionHint
             }
         }
+    }
+
+    func addProfile(named rawName: String) {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            profileActionError = "Profile name cannot be empty."
+            profileActionMessage = nil
+            return
+        }
+
+        guard profileActionInFlightName == nil else {
+            return
+        }
+
+        Task {
+            profileActionInFlightName = name
+            defer { profileActionInFlightName = nil }
+
+            do {
+                _ = try await cli.addAccount(name: name)
+                profileActionError = nil
+                profileActionMessage = "Added profile \(name)."
+                await performRefresh(refreshLive: false)
+            } catch {
+                profileActionError = error.localizedDescription
+                profileActionMessage = nil
+            }
+        }
+    }
+
+    func renameProfile(from oldName: String, to rawNewName: String) {
+        let newName = rawNewName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty else {
+            profileActionError = "New profile name cannot be empty."
+            profileActionMessage = nil
+            return
+        }
+
+        guard oldName != newName else {
+            profileActionError = nil
+            profileActionMessage = "Profile name is unchanged."
+            return
+        }
+
+        guard profileActionInFlightName == nil else {
+            return
+        }
+
+        Task {
+            profileActionInFlightName = oldName
+            defer { profileActionInFlightName = nil }
+
+            do {
+                _ = try await cli.renameAccount(from: oldName, to: newName)
+                profileActionError = nil
+                profileActionMessage = "Renamed \(oldName) to \(newName)."
+                await performRefresh(refreshLive: false)
+            } catch {
+                profileActionError = error.localizedDescription
+                profileActionMessage = nil
+            }
+        }
+    }
+
+    func removeProfile(named name: String, deleteData: Bool) {
+        guard profileActionInFlightName == nil else {
+            return
+        }
+
+        Task {
+            profileActionInFlightName = name
+            defer { profileActionInFlightName = nil }
+
+            do {
+                _ = try await cli.removeAccount(name: name, deleteData: deleteData)
+                profileActionError = nil
+                profileActionMessage = deleteData
+                    ? "Removed \(name) and deleted stored data."
+                    : "Removed \(name)."
+                await performRefresh(refreshLive: false)
+            } catch {
+                profileActionError = error.localizedDescription
+                profileActionMessage = nil
+            }
+        }
+    }
+
+    func importCurrentAuth(into name: String) {
+        guard profileActionInFlightName == nil else {
+            return
+        }
+
+        Task {
+            profileActionInFlightName = name
+            defer { profileActionInFlightName = nil }
+
+            do {
+                _ = try await cli.importDefaultAuth(into: name)
+                profileActionError = nil
+                profileActionMessage = "Imported current ~/.codex/auth.json into \(name)."
+                await performRefresh(refreshLive: false)
+            } catch {
+                profileActionError = error.localizedDescription
+                profileActionMessage = nil
+            }
+        }
+    }
+
+    func checkLoginStatus(for name: String) {
+        guard profileActionInFlightName == nil else {
+            return
+        }
+
+        Task {
+            profileActionInFlightName = name
+            defer { profileActionInFlightName = nil }
+
+            do {
+                let status = try await cli.fetchStatus(name: name)
+                let summary = status.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                if status.exitCode == 0 {
+                    profileActionError = nil
+                    profileActionMessage = summary.isEmpty ? "\(name): login status is OK." : "\(name): \(summary)"
+                } else {
+                    profileActionError = summary.isEmpty ? "\(name): login check failed." : "\(name): \(summary)"
+                    profileActionMessage = nil
+                }
+                await performRefresh(refreshLive: false)
+            } catch {
+                profileActionError = error.localizedDescription
+                profileActionMessage = nil
+            }
+        }
+    }
+
+    func openLoginInTerminal(for name: String) {
+        guard profileActionInFlightName == nil else {
+            return
+        }
+
+        do {
+            try cli.openLoginInTerminal(account: name)
+            profileActionError = nil
+            profileActionMessage = "Opened Terminal login for \(name). Complete login there, then refresh."
+        } catch {
+            profileActionError = error.localizedDescription
+            profileActionMessage = nil
+        }
+    }
+
+    func clearProfileActionFeedback() {
+        profileActionError = nil
+        profileActionMessage = nil
     }
 
     func toggleResetDisplayMode() {
