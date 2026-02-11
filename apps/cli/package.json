@@ -1,5 +1,5 @@
 {
-  "name": "cli",
+  "name": "multicodex",
   "version": "0.1.9",
   "description": "Multi-account wrapper for the Codex CLI",
   "type": "module",

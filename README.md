@@ -18,7 +18,7 @@ This repository is configured as a Bun workspace monorepo with Turborepo.
 
 ## Release Strategy (Monorepo)
 
-- CLI (`apps/cli`) continues to publish to npm using the existing local flow (`bun run --filter cli release`).
+- CLI (`apps/cli`) continues to publish to npm using the existing local flow (`bun run --filter multicodex release`).
 - macOS app (`apps/macos`) is released via GitHub Actions on tags that match `macos-v*`.
 
 ### CLI release (npm)

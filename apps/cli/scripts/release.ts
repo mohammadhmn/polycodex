@@ -125,6 +125,46 @@ function bumpSemver(current: string, type: ReleaseType): string {
   return `${major}.${minor}.${patch}`;
 }
 
+function nextPatchVersion(current: string): string {
+  return bumpSemver(current, "patch");
+}
+
+function npmVersionExists(packageName: string, version: string): boolean {
+  try {
+    const cmd = `npm view ${JSON.stringify(`${packageName}@${version}`)} version --json`;
+    const out = runCapture(cmd).trim();
+    if (!out) return false;
+    if (out === "null") return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveReleaseVersion(args: {
+  packageName: string;
+  currentVersion: string;
+  explicitVersion?: string;
+  releaseType: ReleaseType;
+}): { version: string; adjusted: boolean } {
+  if (args.explicitVersion) {
+    if (npmVersionExists(args.packageName, args.explicitVersion)) {
+      throw new Error(
+        `Version ${args.explicitVersion} is already published for ${args.packageName}. Choose a different version (e.g. --version ${nextPatchVersion(args.explicitVersion)}).`,
+      );
+    }
+    return { version: args.explicitVersion, adjusted: false };
+  }
+
+  let candidate = bumpSemver(args.currentVersion, args.releaseType);
+  let adjusted = false;
+  while (npmVersionExists(args.packageName, candidate)) {
+    candidate = nextPatchVersion(candidate);
+    adjusted = true;
+  }
+  return { version: candidate, adjusted };
+}
+
 async function ensureCleanGitTree(): Promise<void> {
   const out = runCapture("git status --porcelain=v1").trim();
   if (out) throw new Error("Working tree not clean. Commit or stash your changes first.");
@@ -162,10 +202,19 @@ async function main(): Promise<void> {
   const pkg = JSON.parse(pkgRaw) as { name?: string; version?: string };
   if (!pkg.version) throw new Error("package.json missing version");
 
-  const nextVersion = opts.version ? opts.version : bumpSemver(pkg.version, opts.type);
+  const packageName = pkg.name ?? "package";
+  const { version: nextVersion, adjusted } = resolveReleaseVersion({
+    packageName,
+    currentVersion: pkg.version,
+    explicitVersion: opts.version,
+    releaseType: opts.type,
+  });
   if (!isValidSemver(nextVersion)) throw new Error(`Invalid semver: ${nextVersion}`);
 
-  console.log(`Releasing ${pkg.name ?? "package"} v${nextVersion}`);
+  console.log(`Releasing ${packageName} v${nextVersion}`);
+  if (adjusted) {
+    console.log(`Note: requested bump was already published; auto-selected next available patch v${nextVersion}.`);
+  }
 
   await updatePackageVersion(nextVersion);
   await updateCliVersion(nextVersion);

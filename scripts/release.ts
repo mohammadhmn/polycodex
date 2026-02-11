@@ -160,7 +160,7 @@ async function readCliVersion(): Promise<string> {
 }
 
 function releaseCli(args: string[]): void {
-  run("bun", ["run", "--filter", "cli", "release", ...args]);
+  run("bun", ["run", "--filter", "multicodex", "release", ...args]);
 }
 
 function wantsHelp(args: string[]): boolean {
