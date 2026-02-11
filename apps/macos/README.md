@@ -13,7 +13,7 @@ Native macOS SwiftUI menu bar app for `multicodex`.
   - add/rename/remove profiles
   - import current `~/.codex/auth.json` into a profile
   - check login status per profile
-  - launch profile login flow in Terminal (`multicodex run <name> -- login`)
+  - launch profile login flow in Terminal
 - Reset time display toggle (`relative` / `absolute`).
 - Compact dual-bar tray glyph in the menu bar status item for at-a-glance usage.
 
@@ -23,7 +23,7 @@ Requirements:
 
 - macOS 13+
 - Xcode 15+ (or Swift 5.9+ toolchain)
-- Node.js available on the machine (the app runs bundled `multicodex` via `node`)
+- Node.js available on the machine (the app runs bundled `multicodex` through `node`)
 - `just` (recommended for local app workflow)
 
 From repo root:
@@ -46,7 +46,7 @@ bun run --filter macos dev
 From `apps/macos`:
 
 ```bash
-just list                 # show the streamlined command set
+just list                 # show available commands
 just doctor               # check swift/bun/node + sync bundled CLI
 just dev                  # package debug app and run it
 just dmg                  # create build/dist/MultiCodex.dmg
@@ -58,7 +58,7 @@ just clean                # remove build artifacts
 
 This app has its own release flow (separate from CLI npm release).
 
-- Workflow: `/Users/mohamadhosein/Workspace/utilities/multicodex/.github/workflows/release-macos.yml`
+- Workflow: `.github/workflows/release-macos.yml`
 - Trigger tag format: `macos-vMAJOR.MINOR.PATCH` (example: `macos-v0.1.0`)
 - Release artifact: `MultiCodex.dmg`
 
@@ -77,6 +77,15 @@ bun run release:macos
 ```
 
 Note: packaging always rebuilds and bundles the CLI from `apps/cli` for the tagged commit.
+
+## Monorepo shortcuts
+
+From repo root, these commands are available:
+
+- `bun run macos:dev`
+- `bun run macos:dmg`
+- `bun run macos:ci`
+- `bun run release:macos`
 
 ## Command resolution
 
