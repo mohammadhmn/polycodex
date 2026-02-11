@@ -1,4 +1,5 @@
 import { loadConfig } from "./config";
+import { ACCOUNT_SUBCOMMAND_SUGGESTIONS, LIMITS_PROVIDERS, TOP_LEVEL_COMMAND_SUGGESTIONS } from "./command-spec";
 
 export type CompletionContext = {
   words: string[];
@@ -33,33 +34,7 @@ export async function completeMulticodex(ctx: CompletionContext): Promise<string
   // Do not attempt to complete codex passthrough args after the `run --` delimiter.
   if (words[0] === "run" && words.includes("--")) return [];
 
-  const topLevel = [
-    "accounts",
-    "account",
-    "ls",
-    "add",
-    "rm",
-    "rename",
-    "use",
-    "switch",
-    "current",
-    "which",
-    "import",
-    "run",
-    "status",
-    "whoami",
-    "limits",
-    "usage",
-    "codex",
-    "completion",
-    "help",
-    "--help",
-    "-h",
-    "--version",
-    "-V",
-  ];
-
-  if (cword === 0) return uniqPrefixMatch(topLevel, cur);
+  if (cword === 0) return uniqPrefixMatch([...TOP_LEVEL_COMMAND_SUGGESTIONS], cur);
 
   const cmd0 = words[0] ?? "";
   const prev = words[cword - 1] ?? "";
@@ -68,11 +43,10 @@ export async function completeMulticodex(ctx: CompletionContext): Promise<string
 
   // Common: complete account names after --account.
   if (prev === "--account") return uniqPrefixMatch(accountNames, cur);
-  if (prev === "--provider") return uniqPrefixMatch(["auto", "api", "rpc"], cur);
+  if (prev === "--provider") return uniqPrefixMatch([...LIMITS_PROVIDERS], cur);
 
   if (cmd0 === "accounts" || cmd0 === "account") {
-    const subcommands = ["list", "add", "remove", "rm", "rename", "use", "switch", "current", "which", "import"];
-    if (cword === 1) return uniqPrefixMatch(subcommands, cur);
+    if (cword === 1) return uniqPrefixMatch([...ACCOUNT_SUBCOMMAND_SUGGESTIONS], cur);
 
     const sub = words[1] ?? "";
     if (cur.startsWith("-")) {

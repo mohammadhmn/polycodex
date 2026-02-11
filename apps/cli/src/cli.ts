@@ -3,16 +3,14 @@ import { Command } from "commander";
 
 import { ensureAccountExists, loadConfig, resolveAccountName, saveConfig, normalizeAccountName } from "./config";
 import { addAccount, currentAccount, listAccounts, removeAccount, renameAccount } from "./profiles";
-import { applyAccountAuthToDefault, importDefaultAuthToAccount, withAccountAuth } from "./auth-swap";
+import { applyAccountAuthToDefault, importDefaultAuthToAccount } from "./auth-swap";
 import { runCodex, runCodexCapture } from "./run-codex";
 import { accountAuthPath } from "./paths";
 import { readAccountMeta, updateAccountMeta } from "./account-meta";
 import { completeMulticodex } from "./completion";
-import type { RateLimitSnapshot } from "./codex-rpc";
-import { fetchRateLimitsViaRpc } from "./codex-rpc";
-import { fetchRateLimitsViaApi, fetchRateLimitsViaApiForAuthPath } from "./codex-usage-api";
-import { rateLimitsToRow, renderLimitsTable, type LimitsRow } from "./limits";
-import { getCachedLimits, setCachedLimits } from "./limits-cache";
+import { renderLimitsTable } from "./limits";
+import { executeLimitsQuery, type LimitsJsonEnvelope } from "./limits-service";
+import { LIMITS_PROVIDERS, type LimitsProvider } from "./command-spec";
 import { padRight, toErrorMessage, truncateOneLine, wantsJsonArgv, writeJson, type JsonEnvelope } from "./cli-output";
 
 const DEFAULT_LIMITS_CACHE_TTL_SECONDS = 300;
@@ -175,39 +173,120 @@ async function statusCommand(opts: { name?: string; json: boolean }): Promise<ne
   process.exit(result.exitCode);
 }
 
-type LimitsProvider = "auto" | "api" | "rpc";
-type LiveLimitsSource = "live-api" | "live-rpc";
-
 function parseLimitsProvider(raw: string | undefined): LimitsProvider {
   if (!raw) return "auto";
-  if (raw === "auto" || raw === "api" || raw === "rpc") return raw;
-  throw new Error(`Invalid --provider value: ${raw}. Use one of: auto, api, rpc.`);
+  if ((LIMITS_PROVIDERS as readonly string[]).includes(raw)) return raw as LimitsProvider;
+  throw new Error(`Invalid --provider value: ${raw}. Use one of: ${LIMITS_PROVIDERS.join(", ")}.`);
 }
 
-async function fetchLiveLimits(
-  provider: LimitsProvider,
-): Promise<{ snapshot: RateLimitSnapshot; source: LiveLimitsSource }> {
-  if (provider === "api") {
-    return { snapshot: await fetchRateLimitsViaApi(), source: "live-api" };
-  }
-  if (provider === "rpc") {
-    return { snapshot: await fetchRateLimitsViaRpc(), source: "live-rpc" };
-  }
+function writeNoCurrentAccountJsonAndExit(): never {
+  const payload: JsonEnvelope<null> = {
+    schemaVersion: 1,
+    command: "accounts.current",
+    ok: false,
+    error: { message: "No current account set. Run `multicodex accounts add <name>`.", code: "NO_CURRENT_ACCOUNT" },
+  };
+  writeJson(payload);
+  process.exit(2);
+}
 
-  let apiError: unknown;
-  try {
-    return { snapshot: await fetchRateLimitsViaApi(), source: "live-api" };
-  } catch (error) {
-    apiError = error;
+async function addAccountCommand(name: string, opts: { json?: boolean }): Promise<void> {
+  const result = await addAccount({ name });
+  if (opts.json) {
+    const payload: JsonEnvelope<{ account: string; currentAccount?: string }> = {
+      schemaVersion: 1,
+      command: "accounts.add",
+      ok: true,
+      data: { account: result.account, currentAccount: result.config.currentAccount },
+    };
+    writeJson(payload);
+    return;
   }
+  console.log(`Added account: ${result.account}`);
+}
 
-  try {
-    return { snapshot: await fetchRateLimitsViaRpc(), source: "live-rpc" };
-  } catch (rpcError) {
-    const apiMessage = toErrorMessage(apiError);
-    const rpcMessage = toErrorMessage(rpcError);
-    throw new Error(`API failed (${apiMessage}); RPC fallback failed (${rpcMessage})`);
+async function removeAccountCommand(name: string, opts: { deleteData?: boolean; json?: boolean }): Promise<void> {
+  const config = await removeAccount({ name, deleteData: Boolean(opts.deleteData) });
+  if (opts.json) {
+    const payload: JsonEnvelope<{ removedAccount: string; currentAccount?: string }> = {
+      schemaVersion: 1,
+      command: "accounts.remove",
+      ok: true,
+      data: { removedAccount: normalizeAccountName(name), currentAccount: config.currentAccount },
+    };
+    writeJson(payload);
+    return;
   }
+  console.log(`Removed account: ${normalizeAccountName(name)}`);
+}
+
+async function renameAccountCommand(oldName: string, newName: string, opts: { json?: boolean }): Promise<void> {
+  const config = await renameAccount(oldName, newName);
+  if (opts.json) {
+    const payload: JsonEnvelope<{ from: string; to: string; currentAccount?: string }> = {
+      schemaVersion: 1,
+      command: "accounts.rename",
+      ok: true,
+      data: { from: normalizeAccountName(oldName), to: normalizeAccountName(newName), currentAccount: config.currentAccount },
+    };
+    writeJson(payload);
+    return;
+  }
+  console.log(`Renamed account: ${normalizeAccountName(oldName)} -> ${normalizeAccountName(newName)}`);
+}
+
+async function useAccountCommand(name: string, opts: { force?: boolean; json?: boolean }): Promise<void> {
+  await setCurrentAccountAndApplyAuth(name, { forceLock: Boolean(opts.force) });
+  if (opts.json) {
+    const payload: JsonEnvelope<{ currentAccount: string }> = {
+      schemaVersion: 1,
+      command: "accounts.use",
+      ok: true,
+      data: { currentAccount: normalizeAccountName(name) },
+    };
+    writeJson(payload);
+    return;
+  }
+  console.log(`Now using: ${normalizeAccountName(name)}`);
+}
+
+async function currentAccountCommand(opts: { json?: boolean }): Promise<void> {
+  const name = await currentAccount();
+  if (!name) {
+    if (opts.json) {
+      writeNoCurrentAccountJsonAndExit();
+    }
+    console.error("No current account set. Run: multicodex accounts add <name>");
+    process.exit(2);
+  }
+  if (opts.json) {
+    const payload: JsonEnvelope<{ currentAccount: string }> = {
+      schemaVersion: 1,
+      command: "accounts.current",
+      ok: true,
+      data: { currentAccount: name },
+    };
+    writeJson(payload);
+    return;
+  }
+  console.log(name);
+}
+
+async function importAccountCommand(name: string | undefined, opts: { force?: boolean; json?: boolean }): Promise<void> {
+  const account = await resolveExistingAccount(name);
+  await importDefaultAuthToAccount(account, Boolean(opts.force));
+  await updateAccountMeta(account, { lastUsedAt: new Date().toISOString() });
+  if (opts.json) {
+    const payload: JsonEnvelope<{ account: string }> = {
+      schemaVersion: 1,
+      command: "accounts.import",
+      ok: true,
+      data: { account },
+    };
+    writeJson(payload);
+    return;
+  }
+  console.log(`Imported ~/.codex/auth.json into account: ${account}`);
 }
 
 const program = new Command();
@@ -240,20 +319,7 @@ accounts
   .command("add <name>")
   .description("Add an account")
   .option("--json", "output JSON")
-  .action(async (name: string, opts: { json?: boolean }) => {
-    const result = await addAccount({ name });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ account: string; currentAccount?: string }> = {
-        schemaVersion: 1,
-        command: "accounts.add",
-        ok: true,
-        data: { account: result.account, currentAccount: result.config.currentAccount },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Added account: ${result.account}`);
-  });
+  .action(async (name: string, opts: { json?: boolean }) => await addAccountCommand(name, opts));
 
 accounts
   .command("remove <name>")
@@ -261,39 +327,13 @@ accounts
   .description("Remove an account")
   .option("--delete-data", "delete stored account data")
   .option("--json", "output JSON")
-  .action(async (name: string, opts: { deleteData?: boolean; json?: boolean }) => {
-    const config = await removeAccount({ name, deleteData: Boolean(opts.deleteData) });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ removedAccount: string; currentAccount?: string }> = {
-        schemaVersion: 1,
-        command: "accounts.remove",
-        ok: true,
-        data: { removedAccount: normalizeAccountName(name), currentAccount: config.currentAccount },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Removed account: ${normalizeAccountName(name)}`);
-  });
+  .action(async (name: string, opts: { deleteData?: boolean; json?: boolean }) => await removeAccountCommand(name, opts));
 
 accounts
   .command("rename <old> <new>")
   .description("Rename an account")
   .option("--json", "output JSON")
-  .action(async (oldName: string, newName: string, opts: { json?: boolean }) => {
-    const config = await renameAccount(oldName, newName);
-    if (opts.json) {
-      const payload: JsonEnvelope<{ from: string; to: string; currentAccount?: string }> = {
-        schemaVersion: 1,
-        command: "accounts.rename",
-        ok: true,
-        data: { from: normalizeAccountName(oldName), to: normalizeAccountName(newName), currentAccount: config.currentAccount },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Renamed account: ${normalizeAccountName(oldName)} -> ${normalizeAccountName(newName)}`);
-  });
+  .action(async (oldName: string, newName: string, opts: { json?: boolean }) => await renameAccountCommand(oldName, newName, opts));
 
 accounts
   .command("use <name>")
@@ -301,76 +341,21 @@ accounts
   .description("Set current account and apply its auth to ~/.codex/auth.json")
   .option("--force", "reclaim a stale lock")
   .option("--json", "output JSON")
-  .action(async (name: string, opts: { force?: boolean; json?: boolean }) => {
-    await setCurrentAccountAndApplyAuth(name, { forceLock: Boolean(opts.force) });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ currentAccount: string }> = {
-        schemaVersion: 1,
-        command: "accounts.use",
-        ok: true,
-        data: { currentAccount: normalizeAccountName(name) },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Now using: ${normalizeAccountName(name)}`);
-  });
+  .action(async (name: string, opts: { force?: boolean; json?: boolean }) => await useAccountCommand(name, opts));
 
 accounts
   .command("current")
   .alias("which")
   .description("Print current account")
   .option("--json", "output JSON")
-  .action(async (opts: { json?: boolean }) => {
-    const name = await currentAccount();
-    if (!name) {
-      if (opts.json) {
-        const payload: JsonEnvelope<null> = {
-          schemaVersion: 1,
-          command: "accounts.current",
-          ok: false,
-          error: { message: "No current account set. Run `multicodex accounts add <name>`.", code: "NO_CURRENT_ACCOUNT" },
-        };
-        writeJson(payload);
-        process.exit(2);
-      }
-      console.error("No current account set. Run: multicodex accounts add <name>");
-      process.exit(2);
-    }
-    if (opts.json) {
-      const payload: JsonEnvelope<{ currentAccount: string }> = {
-        schemaVersion: 1,
-        command: "accounts.current",
-        ok: true,
-        data: { currentAccount: name },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(name);
-  });
+  .action(async (opts: { json?: boolean }) => await currentAccountCommand(opts));
 
 accounts
   .command("import [name]")
   .description("Import current ~/.codex/auth.json into an account snapshot")
   .option("--force", "reclaim a stale lock")
   .option("--json", "output JSON")
-  .action(async (name: string | undefined, opts: { force?: boolean; json?: boolean }) => {
-    const account = await resolveExistingAccount(name);
-    await importDefaultAuthToAccount(account, Boolean(opts.force));
-    await updateAccountMeta(account, { lastUsedAt: new Date().toISOString() });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ account: string }> = {
-        schemaVersion: 1,
-        command: "accounts.import",
-        ok: true,
-        data: { account },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Imported ~/.codex/auth.json into account: ${account}`);
-  });
+  .action(async (name: string | undefined, opts: { force?: boolean; json?: boolean }) => await importAccountCommand(name, opts));
 
 // aliases for common accounts commands
 program
@@ -382,180 +367,46 @@ program
   .command("add <name>")
   .description("Alias for `accounts add`")
   .option("--json", "output JSON")
-  .action(async (name: string, opts: { json?: boolean }) => {
-    const result = await addAccount({ name });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ account: string; currentAccount?: string }> = {
-        schemaVersion: 1,
-        command: "accounts.add",
-        ok: true,
-        data: { account: result.account, currentAccount: result.config.currentAccount },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Added account: ${result.account}`);
-  });
+  .action(async (name: string, opts: { json?: boolean }) => await addAccountCommand(name, opts));
 program
   .command("rm <name>")
   .description("Alias for `accounts remove`")
   .option("--delete-data", "delete stored account data")
   .option("--json", "output JSON")
-  .action(async (name: string, opts: { deleteData?: boolean; json?: boolean }) => {
-    const config = await removeAccount({ name, deleteData: Boolean(opts.deleteData) });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ removedAccount: string; currentAccount?: string }> = {
-        schemaVersion: 1,
-        command: "accounts.remove",
-        ok: true,
-        data: { removedAccount: normalizeAccountName(name), currentAccount: config.currentAccount },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Removed account: ${normalizeAccountName(name)}`);
-  });
+  .action(async (name: string, opts: { deleteData?: boolean; json?: boolean }) => await removeAccountCommand(name, opts));
 program
   .command("rename <old> <new>")
   .description("Alias for `accounts rename`")
   .option("--json", "output JSON")
-  .action(async (a: string, b: string, opts: { json?: boolean }) => {
-    const config = await renameAccount(a, b);
-    if (opts.json) {
-      const payload: JsonEnvelope<{ from: string; to: string; currentAccount?: string }> = {
-        schemaVersion: 1,
-        command: "accounts.rename",
-        ok: true,
-        data: { from: normalizeAccountName(a), to: normalizeAccountName(b), currentAccount: config.currentAccount },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Renamed account: ${normalizeAccountName(a)} -> ${normalizeAccountName(b)}`);
-  });
+  .action(async (a: string, b: string, opts: { json?: boolean }) => await renameAccountCommand(a, b, opts));
 program
   .command("use <name>")
   .description("Alias for `accounts use`")
   .option("--force", "reclaim a stale lock")
   .option("--json", "output JSON")
-  .action(async (name: string, opts: { force?: boolean; json?: boolean }) => {
-    await setCurrentAccountAndApplyAuth(name, { forceLock: Boolean(opts.force) });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ currentAccount: string }> = {
-        schemaVersion: 1,
-        command: "accounts.use",
-        ok: true,
-        data: { currentAccount: normalizeAccountName(name) },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Now using: ${normalizeAccountName(name)}`);
-  });
+  .action(async (name: string, opts: { force?: boolean; json?: boolean }) => await useAccountCommand(name, opts));
 program
   .command("switch <name>")
   .description("Alias for `accounts use`")
   .option("--force", "reclaim a stale lock")
   .option("--json", "output JSON")
-  .action(async (name: string, opts: { force?: boolean; json?: boolean }) => {
-    await setCurrentAccountAndApplyAuth(name, { forceLock: Boolean(opts.force) });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ currentAccount: string }> = {
-        schemaVersion: 1,
-        command: "accounts.use",
-        ok: true,
-        data: { currentAccount: normalizeAccountName(name) },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Now using: ${normalizeAccountName(name)}`);
-  });
+  .action(async (name: string, opts: { force?: boolean; json?: boolean }) => await useAccountCommand(name, opts));
 program
   .command("current")
   .description("Alias for `accounts current`")
   .option("--json", "output JSON")
-  .action(async (opts: { json?: boolean }) => {
-    const name = await currentAccount();
-    if (!name) {
-      if (opts.json) {
-        const payload: JsonEnvelope<null> = {
-          schemaVersion: 1,
-          command: "accounts.current",
-          ok: false,
-          error: { message: "No current account set. Run `multicodex accounts add <name>`.", code: "NO_CURRENT_ACCOUNT" },
-        };
-        writeJson(payload);
-        process.exit(2);
-      }
-      console.error("No current account set. Run: multicodex accounts add <name>");
-      process.exit(2);
-    }
-    if (opts.json) {
-      const payload: JsonEnvelope<{ currentAccount: string }> = {
-        schemaVersion: 1,
-        command: "accounts.current",
-        ok: true,
-        data: { currentAccount: name },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(name);
-  });
+  .action(async (opts: { json?: boolean }) => await currentAccountCommand(opts));
 program
   .command("which")
   .description("Alias for `accounts current`")
   .option("--json", "output JSON")
-  .action(async (opts: { json?: boolean }) => {
-    const name = await currentAccount();
-    if (!name) {
-      if (opts.json) {
-        const payload: JsonEnvelope<null> = {
-          schemaVersion: 1,
-          command: "accounts.current",
-          ok: false,
-          error: { message: "No current account set. Run `multicodex accounts add <name>`.", code: "NO_CURRENT_ACCOUNT" },
-        };
-        writeJson(payload);
-        process.exit(2);
-      }
-      console.error("No current account set. Run: multicodex accounts add <name>");
-      process.exit(2);
-    }
-    if (opts.json) {
-      const payload: JsonEnvelope<{ currentAccount: string }> = {
-        schemaVersion: 1,
-        command: "accounts.current",
-        ok: true,
-        data: { currentAccount: name },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(name);
-  });
+  .action(async (opts: { json?: boolean }) => await currentAccountCommand(opts));
 program
   .command("import [name]")
   .description("Alias for `accounts import`")
   .option("--force", "reclaim a stale lock")
   .option("--json", "output JSON")
-  .action(async (name: string | undefined, opts: { force?: boolean; json?: boolean }) => {
-    const account = await resolveExistingAccount(name);
-    await importDefaultAuthToAccount(account, Boolean(opts.force));
-    await updateAccountMeta(account, { lastUsedAt: new Date().toISOString() });
-    if (opts.json) {
-      const payload: JsonEnvelope<{ account: string }> = {
-        schemaVersion: 1,
-        command: "accounts.import",
-        ok: true,
-        data: { account },
-      };
-      writeJson(payload);
-      return;
-    }
-    console.log(`Imported ~/.codex/auth.json into account: ${account}`);
-  });
+  .action(async (name: string | undefined, opts: { force?: boolean; json?: boolean }) => await importAccountCommand(name, opts));
 
 // run
 program
@@ -607,7 +458,7 @@ program
   .alias("usage")
   .description("Show usage limits via OpenUsage-style API (with RPC fallback)")
   .option("--account <name>", "account name (alternative to positional)")
-  .option("--provider <provider>", "usage provider: auto|api|rpc (default: auto)")
+  .option("--provider <provider>", `usage provider: ${LIMITS_PROVIDERS.join("|")} (default: auto)`)
   .option("--force", "reclaim a stale lock")
   .option("--no-cache", "disable cached results")
   .option("--refresh", "force refetch live values (bypass cache)")
@@ -641,139 +492,16 @@ program
       return;
     }
 
-    type AccountLimitsOutcome = {
-      account: string;
-      row?: LimitsRow;
-      result?: { account: string; source: string; provider: LimitsProvider | "cached"; snapshot?: unknown; ageSec?: number };
-      cacheWrite?: { snapshot: RateLimitSnapshot; source: LiveLimitsSource };
-      apiError?: unknown;
-      error?: string;
-    };
-
-    let hadError = false;
-    const rows: LimitsRow[] = [];
-    const results: Array<{ account: string; source: string; provider: LimitsProvider | "cached"; snapshot?: unknown; ageSec?: number }> = [];
-    const errors: Array<{ account: string; message: string }> = [];
-
-    const outcomes = new Map<string, AccountLimitsOutcome>();
-
-    if (provider === "rpc") {
-      for (const account of targets) {
-        try {
-          if (useCache) {
-            const cached = await getCachedLimits(account, ttlMs);
-            if (cached) {
-              const ageSec = Math.round(cached.ageMs / 1000);
-              const cachedProvider = cached.provider ?? "cached";
-              outcomes.set(account, {
-                account,
-                row: rateLimitsToRow(cached.snapshot, account, `cached ${cachedProvider} ${ageSec}s`),
-                result: { account, source: "cached", provider: cachedProvider, snapshot: cached.snapshot, ageSec },
-              });
-              continue;
-            }
-          }
-
-          if (!opts.json) console.error(`Fetching limits for ${account}...`);
-          const live = await withAccountAuth(
-            { account, forceLock, restorePreviousAuth: true },
-            async () => await fetchLiveLimits(provider),
-          );
-          outcomes.set(account, {
-            account,
-            row: rateLimitsToRow(live.snapshot, account, live.source),
-            result: {
-              account,
-              source: live.source,
-              provider: live.source === "live-api" ? "api" : "rpc",
-              snapshot: live.snapshot,
-            },
-            cacheWrite: { snapshot: live.snapshot, source: live.source },
-          });
-        } catch (error) {
-          outcomes.set(account, { account, error: toErrorMessage(error) });
-        }
-      }
-    } else {
-      const apiOutcomes = await Promise.all(
-        targets.map(async (account): Promise<AccountLimitsOutcome> => {
-          try {
-            if (useCache) {
-              const cached = await getCachedLimits(account, ttlMs);
-              if (cached) {
-                const ageSec = Math.round(cached.ageMs / 1000);
-                const cachedProvider = cached.provider ?? "cached";
-                return {
-                  account,
-                  row: rateLimitsToRow(cached.snapshot, account, `cached ${cachedProvider} ${ageSec}s`),
-                  result: { account, source: "cached", provider: cachedProvider, snapshot: cached.snapshot, ageSec },
-                };
-              }
-            }
-
-            if (!opts.json) console.error(`Fetching limits for ${account}...`);
-            const snapshot = await fetchRateLimitsViaApiForAuthPath(accountAuthPath(account));
-            return {
-              account,
-              row: rateLimitsToRow(snapshot, account, "live-api"),
-              result: { account, source: "live-api", provider: "api", snapshot },
-              cacheWrite: { snapshot, source: "live-api" },
-            };
-          } catch (error) {
-            if (provider === "auto") return { account, apiError: error };
-            return { account, error: toErrorMessage(error) };
-          }
-        }),
-      );
-
-      for (const outcome of apiOutcomes) outcomes.set(outcome.account, outcome);
-
-      if (provider === "auto") {
-        for (const account of targets) {
-          const current = outcomes.get(account);
-          if (!current?.apiError) continue;
-
-          try {
-            const snapshot = await withAccountAuth(
-              { account, forceLock, restorePreviousAuth: true },
-              async () => await fetchRateLimitsViaRpc(),
-            );
-            outcomes.set(account, {
-              account,
-              row: rateLimitsToRow(snapshot, account, "live-rpc"),
-              result: { account, source: "live-rpc", provider: "rpc", snapshot },
-              cacheWrite: { snapshot, source: "live-rpc" },
-            });
-          } catch (rpcError) {
-            const apiMessage = toErrorMessage(current.apiError);
-            const rpcMessage = toErrorMessage(rpcError);
-            outcomes.set(account, {
-              account,
-              error: `API failed (${apiMessage}); RPC fallback failed (${rpcMessage})`,
-            });
-          }
-        }
-      }
-    }
-
-    for (const account of targets) {
-      const outcome = outcomes.get(account);
-      if (!outcome) continue;
-      if (outcome.cacheWrite) {
-        await setCachedLimits(account, outcome.cacheWrite.snapshot, outcome.cacheWrite.source);
-      }
-      if (outcome.row) rows.push(outcome.row);
-      if (outcome.result) results.push(outcome.result);
-      if (outcome.error) {
-        hadError = true;
-        errors.push({ account, message: outcome.error });
-      }
-    }
+    const { rows, results, errors, hadError } = await executeLimitsQuery({
+      provider,
+      targets,
+      forceLock,
+      useCache,
+      ttlMs,
+      onFetching: opts.json ? undefined : (account) => console.error(`Fetching limits for ${account}...`),
+    });
     if (opts.json) {
-      const payload: JsonEnvelope<{
-        results: Array<{ account: string; source: string; provider: LimitsProvider | "cached"; snapshot?: unknown; ageSec?: number }>;
-        errors: Array<{ account: string; message: string }>;
-      }> = {
+      const payload: LimitsJsonEnvelope = {
         schemaVersion: 1,
         command: "limits",
         ok: !hadError,
