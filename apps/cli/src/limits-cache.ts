@@ -1,7 +1,7 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import type { RateLimitSnapshot } from "./codex-rpc";
 import { multicodexHomeDir } from "./paths";
+import { safeReadFileUtf8, writeFileAtomicText } from "./lib/fs-atomic";
 
 export type CachedLimitsProvider = "api" | "rpc";
 
@@ -21,25 +21,8 @@ function cachePath(): string {
   return path.join(multicodexHomeDir(), "limits-cache.json");
 }
 
-async function safeReadFile(p: string): Promise<string | undefined> {
-  try {
-    return await fs.readFile(p, "utf8");
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException | undefined)?.code;
-    if (code === "ENOENT") return undefined;
-    throw error;
-  }
-}
-
-async function writeFileAtomic(p: string, data: string): Promise<void> {
-  await fs.mkdir(path.dirname(p), { recursive: true, mode: 0o700 });
-  const tmp = `${p}.tmp.${process.pid}.${Math.random().toString(16).slice(2)}`;
-  await fs.writeFile(tmp, data, { mode: 0o600 });
-  await fs.rename(tmp, p);
-}
-
 async function loadCache(): Promise<LimitsCache> {
-  const raw = await safeReadFile(cachePath());
+  const raw = await safeReadFileUtf8(cachePath());
   if (!raw) return { version: 1, accounts: {} };
   try {
     const parsed = JSON.parse(raw) as LimitsCache;
@@ -51,7 +34,7 @@ async function loadCache(): Promise<LimitsCache> {
 }
 
 async function saveCache(cache: LimitsCache): Promise<void> {
-  await writeFileAtomic(cachePath(), JSON.stringify(cache, null, 2) + "\n");
+  await writeFileAtomicText(cachePath(), JSON.stringify(cache, null, 2) + "\n");
 }
 
 export async function getCachedLimits(

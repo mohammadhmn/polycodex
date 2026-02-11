@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import type { Stats } from "node:fs";
 import path from "node:path";
 import { accountMetaPath } from "./paths";
+import { safeReadFileUtf8 } from "./lib/fs-atomic";
 
 export type AccountMeta = {
   createdAt: string;
@@ -10,16 +11,6 @@ export type AccountMeta = {
   lastLoginCheckedAt?: string;
   updatedAt?: string;
 };
-
-async function safeReadFile(p: string): Promise<string | undefined> {
-  try {
-    return await fs.readFile(p, "utf8");
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException | undefined)?.code;
-    if (code === "ENOENT") return undefined;
-    throw error;
-  }
-}
 
 async function safeStat(p: string): Promise<Stats | undefined> {
   try {
@@ -41,7 +32,7 @@ function nowIso(): string {
 
 export async function ensureAccountMeta(accountName: string): Promise<AccountMeta> {
   const p = accountMetaPath(accountName);
-  const existing = await safeReadFile(p);
+  const existing = await safeReadFileUtf8(p);
   if (existing) {
     const parsed = JSON.parse(existing) as unknown;
     if (isRecord(parsed) && typeof parsed.createdAt === "string") return parsed as AccountMeta;
@@ -55,7 +46,7 @@ export async function ensureAccountMeta(accountName: string): Promise<AccountMet
 
 export async function readAccountMeta(accountName: string): Promise<AccountMeta | undefined> {
   const p = accountMetaPath(accountName);
-  const raw = await safeReadFile(p);
+  const raw = await safeReadFileUtf8(p);
   if (!raw) return undefined;
   const parsed = JSON.parse(raw) as unknown;
   if (!isRecord(parsed)) return undefined;

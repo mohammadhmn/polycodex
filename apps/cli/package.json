@@ -10,7 +10,7 @@
     "build": "bun build --target=node --format=esm --outfile dist/cli.js src/cli.ts && bun run scripts/postbuild.ts",
     "prepublishOnly": "bun run build",
     "test": "bun test",
-    "typecheck": "bunx tsc -p tsconfig.json --noEmit",
+    "typecheck": "node ./node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit",
     "release": "bun run scripts/release.ts"
   },
   "bin": {
